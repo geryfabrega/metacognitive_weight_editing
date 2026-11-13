@@ -49,6 +49,8 @@ class WeightEditingSandbox:
         self.model.requires_grad_(False)
         self.tokenizer = tokenizer
         self.staged = SparseWeightDelta()
+        self.committed_deltas: Dict[str, Tuple[torch.LongTensor, torch.Tensor]] = {}
+        self.committed_write_vectors: List[torch.Tensor] = []
         self.committed_history: List[Dict[str, object]] = []
         self.passes_used = 0
 
@@ -85,14 +87,28 @@ class WeightEditingSandbox:
                 new_v = val.to(flat.device, flat.dtype)
                 total_l2 += float((new_v.float() - flat[dev_idx].float()).norm().item() ** 2)
                 flat[dev_idx] = new_v
+                self.committed_deltas[name] = (idx.clone(), val.clone())
+        self.committed_write_vectors.extend(self.staged.write_vectors)
         rec = {
             "description": self.staged.description,
             "tensors_edited": list(self.staged.deltas.keys()),
             "entries_changed": self.staged.num_entries_changed,
+            "cumulative_entries_changed": sum(int(i.numel()) for i, _ in self.committed_deltas.values()),
             "l2_norm": round(total_l2 ** 0.5, 4),
         }
         self.committed_history.append(rec)
         return rec
+
+    def save_committed_deltas(self, path) -> None:
+        """Save all committed sparse weight deltas to a safetensors file on disk."""
+        from pathlib import Path
+        from safetensors.torch import save_file
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        tensors = {}
+        for name, (idx, val) in self.committed_deltas.items():
+            tensors[f"{name}::idx"] = idx.contiguous()
+            tensors[f"{name}::val"] = val.contiguous()
+        save_file(tensors, str(path))
 
     @torch.no_grad()
     def capture_layer_activations(

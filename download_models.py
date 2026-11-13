@@ -1,4 +1,4 @@
-"""Download GPT-2 Small and Pretrained SAEs (Layer 6 & Layer 9) to /tmp/mwe_cache."""
+"""Download GPT-2 Small and Pretrained SAEs (Layers 6..11) to /tmp/mwe_cache."""
 
 import importlib.metadata
 _orig_version = importlib.metadata.version
@@ -16,17 +16,17 @@ from huggingface_hub import hf_hub_download
 CACHE_DIR = Path("/tmp/mwe_cache")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-print("Downloading GPT-2 tokenizer and model...")
+print("Ensuring GPT-2 tokenizer and model are cached...")
 AutoTokenizer.from_pretrained("gpt2", cache_dir=str(CACHE_DIR))
 AutoModelForCausalLM.from_pretrained("gpt2", cache_dir=str(CACHE_DIR))
 
-for layer in (6, 9):
+for layer in (6, 7, 8, 9, 10, 11):
     hook = f"blocks.{layer}.hook_resid_pre"
-    print(f"Downloading pretrained SAE for {hook}...")
+    print(f"Ensuring pretrained SAE for {hook} is cached...")
     hf_hub_download(
         repo_id="jbloom/GPT2-Small-SAEs-Reformatted",
         filename=f"{hook}/sae_weights.safetensors",
         cache_dir=str(CACHE_DIR),
     )
 
-print("All models and pretrained SAEs downloaded to /tmp/mwe_cache!")
+print("All models and pretrained SAEs (Layers 6-11) cached in /tmp/mwe_cache!")

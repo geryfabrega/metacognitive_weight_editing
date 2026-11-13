@@ -1,0 +1,79 @@
+{
+  "elapsed_seconds": 47.95,
+  "layers_visited": [6, 7, 8, 9, 10, 11],
+  "committed_edits_count": 3,
+  "heldout_base": {
+    "split": "heldout",
+    "failure_rate": 1.0,
+    "abstention_fix_rate": 0.0,
+    "mean_target_token_prob": 0.0006,
+    "keeper_identical_rate": 1.0,
+    "collateral_kl": 0.0
+  },
+  "heldout_final": {
+    "split": "heldout",
+    "failure_rate": 0.1,
+    "abstention_fix_rate": 0.9,
+    "mean_target_token_prob": 0.8996,
+    "keeper_identical_rate": 1.0,
+    "collateral_kl": 1.7e-05
+  },
+  "progression": [
+    {
+      "iteration": 0,
+      "layer": "base",
+      "cumulative_entries_changed": 0,
+      "practice_failure_rate": 1.0,
+      "practice_target_prob": 0.0005,
+      "heldout_failure_rate": 1.0,
+      "heldout_target_prob": 0.0006,
+      "heldout_keeper_identical": 1.0,
+      "collateral_kl": 0.0
+    },
+    {
+      "iteration": 1,
+      "layer": 6,
+      "unit": 1739,
+      "sae_latent": 693,
+      "sae_auc": 0.9792,
+      "cumulative_entries_changed": 1537,
+      "practice_failure_rate": 0.1667,
+      "practice_target_prob": 0.8176,
+      "heldout_failure_rate": 0.3,
+      "heldout_target_prob": 0.6262,
+      "heldout_keeper_identical": 1.0,
+      "collateral_kl": 1e-05,
+      "downstream_sae_patched": "blocks.7.hook_resid_pre (MSE 31530.6 -> 20983.4)"
+    },
+    {
+      "iteration": 2,
+      "layer": 7,
+      "unit": 2758,
+      "sae_latent": 1819,
+      "sae_auc": 1.0,
+      "cumulative_entries_changed": 3074,
+      "practice_failure_rate": 0.0,
+      "practice_target_prob": 0.9557,
+      "heldout_failure_rate": 0.2,
+      "heldout_target_prob": 0.7499,
+      "heldout_keeper_identical": 1.0,
+      "collateral_kl": 1.3e-05,
+      "downstream_sae_patched": "blocks.8.hook_resid_pre (MSE 127624.3 -> 95275.7)"
+    },
+    {
+      "iteration": 3,
+      "layer": 8,
+      "unit": 583,
+      "sae_latent": 18486,
+      "sae_auc": 1.0,
+      "cumulative_entries_changed": 4611,
+      "practice_failure_rate": 0.0,
+      "practice_target_prob": 1.0,
+      "heldout_failure_rate": 0.1,
+      "heldout_target_prob": 0.8996,
+      "heldout_keeper_identical": 1.0,
+      "collateral_kl": 1.7e-05,
+      "downstream_sae_patched": "blocks.9.hook_resid_pre (MSE 9203044.0 -> 6969616.5)"
+    }
+  ]
+}

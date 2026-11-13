@@ -203,6 +203,8 @@ class SparseAutoencoder(nn.Module):
             after_metrics = self.reconstruction_metrics(post_edit_acts)
             keeper_metrics = self.reconstruction_metrics(pre_edit_acts)
 
+        self._last_patched_indices = selected.detach().cpu()
+
         return {
             "hook_point": self.hook_point,
             "total_latents": self.d_sae,
@@ -213,3 +215,18 @@ class SparseAutoencoder(nn.Module):
             "post_edit_After_SAE_patch": after_metrics,
             "pre_edit_distribution_retention": keeper_metrics,
         }
+
+    def save_patch_delta(self, path: Path) -> None:
+        """Save only the locally patched SAE latents to disk as safetensors (leaving base SAE untouched)."""
+        from safetensors.torch import save_file
+        idx = getattr(self, "_last_patched_indices", torch.tensor([], dtype=torch.long))
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        save_file(
+            {
+                "patched_indices": idx,
+                "W_enc_cols": self.W_enc[:, idx].detach().cpu().contiguous(),
+                "b_enc_vals": self.b_enc[idx].detach().cpu().contiguous(),
+                "W_dec_rows": self.W_dec[idx, :].detach().cpu().contiguous(),
+            },
+            str(path),
+        )

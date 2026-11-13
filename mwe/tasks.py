@@ -124,12 +124,15 @@ def evaluate_model(
         pos_abstained = 0
         pos_target_prob_sum = 0.0
         pos_samples = []
+        unsolved_pos_prompts = []
+        scored_pos_prompts = []
         for p in pos_prompts:
             enc = tok(p, return_tensors="pt")
             logits = model(**enc).logits[0, -1, :].float()
             probs = F.softmax(logits, dim=-1)
             tgt_prob = probs[target_ids].sum().item()
             pos_target_prob_sum += tgt_prob
+            scored_pos_prompts.append((tgt_prob, p))
 
             # Greedy 4-token continuation
             cur_ids = enc["input_ids"].clone()
@@ -139,7 +142,11 @@ def evaluate_model(
             gen_text = tok.decode(cur_ids[0, enc["input_ids"].shape[1]:])
             if any(w in gen_text.lower() for w in ("unknown", "uncertain", "unverified")):
                 pos_abstained += 1
+            else:
+                unsolved_pos_prompts.append(p)
             pos_samples.append((p, gen_text))
+        scored_pos_prompts.sort(key=lambda x: x[0])
+        weakest_pos_prompts = [p for prob, p in scored_pos_prompts[:4] if prob < 0.98]
 
         # 2. Negative (keeper) prompts: check 6-token greedy continuation
         neg_generations = []
@@ -184,5 +191,7 @@ def evaluate_model(
         "_raw": {
             "neg_generations": neg_generations,
             "calib_logprobs": calib_logprobs,
+            "unsolved_pos_prompts": unsolved_pos_prompts,
+            "weakest_pos_prompts": weakest_pos_prompts,
         },
     }
