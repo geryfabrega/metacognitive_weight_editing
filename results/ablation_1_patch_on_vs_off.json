@@ -1,0 +1,262 @@
+{
+  "blended_0.5__patch_sae_OFF": {
+    "patch_sae": false,
+    "sae_blend": 0.5,
+    "committed_edits": 2,
+    "final_prac_fail": 0.0,
+    "final_prac_prob": 0.9999,
+    "final_held_fail": 0.2,
+    "final_held_prob": 0.7997,
+    "final_held_keeper": 1.0,
+    "final_kl": 1.3e-05,
+    "trace": [
+      {
+        "layer": 6,
+        "committed": true,
+        "unit": 1739,
+        "sae_mse_at_entry": 3.424417,
+        "top_latents": [
+          693,
+          19983,
+          3210
+        ],
+        "top_auc": 0.9792,
+        "prac_fail": 0.1667,
+        "prac_prob": 0.829,
+        "held_fail": 0.3,
+        "held_prob": 0.6298,
+        "held_keeper": 1.0,
+        "kl": 1e-05,
+        "next_sae_patched_mse": "UNPATCHED (Frozen)"
+      },
+      {
+        "layer": 7,
+        "committed": true,
+        "unit": 2758,
+        "sae_mse_at_entry": 58153.726562,
+        "top_latents": [
+          1819,
+          11152,
+          23702
+        ],
+        "top_auc": 1.0,
+        "prac_fail": 0.0,
+        "prac_prob": 0.9999,
+        "held_fail": 0.2,
+        "held_prob": 0.7997,
+        "held_keeper": 1.0,
+        "kl": 1.3e-05,
+        "next_sae_patched_mse": "UNPATCHED (Frozen)"
+      }
+    ]
+  },
+  "blended_0.5__patch_sae_ON": {
+    "patch_sae": true,
+    "sae_blend": 0.5,
+    "committed_edits": 2,
+    "final_prac_fail": 0.0,
+    "final_prac_prob": 0.9999,
+    "final_held_fail": 0.2,
+    "final_held_prob": 0.7995,
+    "final_held_keeper": 1.0,
+    "final_kl": 1.3e-05,
+    "trace": [
+      {
+        "layer": 6,
+        "committed": true,
+        "unit": 1739,
+        "sae_mse_at_entry": 3.424417,
+        "top_latents": [
+          693,
+          19983,
+          3210
+        ],
+        "top_auc": 0.9792,
+        "prac_fail": 0.1667,
+        "prac_prob": 0.829,
+        "held_fail": 0.3,
+        "held_prob": 0.6298,
+        "held_keeper": 1.0,
+        "kl": 1e-05,
+        "next_sae_patched_mse": "58153.7 -> 17028.6"
+      },
+      {
+        "layer": 7,
+        "committed": true,
+        "unit": 2758,
+        "sae_mse_at_entry": 211.921326,
+        "top_latents": [
+          1819,
+          23702,
+          1415
+        ],
+        "top_auc": 1.0,
+        "prac_fail": 0.0,
+        "prac_prob": 0.9999,
+        "held_fail": 0.2,
+        "held_prob": 0.7995,
+        "held_keeper": 1.0,
+        "kl": 1.3e-05,
+        "next_sae_patched_mse": "161.9 -> 5.8"
+      }
+    ]
+  },
+  "pure_sae_1.0__patch_sae_OFF": {
+    "patch_sae": false,
+    "sae_blend": 1.0,
+    "committed_edits": 0,
+    "final_prac_fail": 1.0,
+    "final_prac_prob": 0.0005,
+    "final_held_fail": 1.0,
+    "final_held_prob": 0.0006,
+    "final_held_keeper": 1.0,
+    "final_kl": 0.0,
+    "trace": [
+      {
+        "layer": 6,
+        "committed": false,
+        "sae_mse_at_entry": 3.424417,
+        "top_latents": [
+          693,
+          19983,
+          3210
+        ],
+        "top_auc": 0.9792
+      },
+      {
+        "layer": 7,
+        "committed": false,
+        "sae_mse_at_entry": 9.56231,
+        "top_latents": [
+          7839,
+          16835,
+          24328
+        ],
+        "top_auc": 0.9583
+      },
+      {
+        "layer": 8,
+        "committed": false,
+        "sae_mse_at_entry": 43.394688,
+        "top_latents": [
+          2735,
+          8056,
+          18134
+        ],
+        "top_auc": 1.0
+      },
+      {
+        "layer": 9,
+        "committed": false,
+        "sae_mse_at_entry": 42.834629,
+        "top_latents": [
+          12709,
+          18096,
+          14057
+        ],
+        "top_auc": 1.0
+      },
+      {
+        "layer": 10,
+        "committed": false,
+        "sae_mse_at_entry": 40.81361,
+        "top_latents": [
+          21024,
+          19730,
+          583
+        ],
+        "top_auc": 0.9722
+      },
+      {
+        "layer": 11,
+        "committed": false,
+        "sae_mse_at_entry": 1682.822876,
+        "top_latents": [
+          2032,
+          23992,
+          21468
+        ],
+        "top_auc": 0.9931
+      }
+    ]
+  },
+  "pure_sae_1.0__patch_sae_ON": {
+    "patch_sae": true,
+    "sae_blend": 1.0,
+    "committed_edits": 0,
+    "final_prac_fail": 1.0,
+    "final_prac_prob": 0.0005,
+    "final_held_fail": 1.0,
+    "final_held_prob": 0.0006,
+    "final_held_keeper": 1.0,
+    "final_kl": 0.0,
+    "trace": [
+      {
+        "layer": 6,
+        "committed": false,
+        "sae_mse_at_entry": 3.424417,
+        "top_latents": [
+          693,
+          19983,
+          3210
+        ],
+        "top_auc": 0.9792
+      },
+      {
+        "layer": 7,
+        "committed": false,
+        "sae_mse_at_entry": 9.56231,
+        "top_latents": [
+          7839,
+          16835,
+          24328
+        ],
+        "top_auc": 0.9583
+      },
+      {
+        "layer": 8,
+        "committed": false,
+        "sae_mse_at_entry": 43.394688,
+        "top_latents": [
+          2735,
+          8056,
+          18134
+        ],
+        "top_auc": 1.0
+      },
+      {
+        "layer": 9,
+        "committed": false,
+        "sae_mse_at_entry": 42.834629,
+        "top_latents": [
+          12709,
+          18096,
+          14057
+        ],
+        "top_auc": 1.0
+      },
+      {
+        "layer": 10,
+        "committed": false,
+        "sae_mse_at_entry": 40.81361,
+        "top_latents": [
+          21024,
+          19730,
+          583
+        ],
+        "top_auc": 0.9722
+      },
+      {
+        "layer": 11,
+        "committed": false,
+        "sae_mse_at_entry": 1682.822876,
+        "top_latents": [
+          2032,
+          23992,
+          21468
+        ],
+        "top_auc": 0.9931
+      }
+    ]
+  }
+}
