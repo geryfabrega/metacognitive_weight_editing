@@ -1,0 +1,182 @@
+{
+  "elapsed_seconds": 22.03,
+  "top_sae_latents_l6": [
+    {
+      "latent_idx": 693,
+      "auc": 0.9792,
+      "pos_mean": 1.2313,
+      "neg_mean": 0.0724,
+      "diff": 1.1589,
+      "fire_rate_pos": 1.0,
+      "fire_rate_neg": 0.1667
+    },
+    {
+      "latent_idx": 19983,
+      "auc": 0.9583,
+      "pos_mean": 1.9605,
+      "neg_mean": 0.6278,
+      "diff": 1.3327,
+      "fire_rate_pos": 1.0,
+      "fire_rate_neg": 0.75
+    },
+    {
+      "latent_idx": 3210,
+      "auc": 0.9583,
+      "pos_mean": 0.4719,
+      "neg_mean": 0.0,
+      "diff": 0.4719,
+      "fire_rate_pos": 0.9167,
+      "fire_rate_neg": 0.0
+    },
+    {
+      "latent_idx": 912,
+      "auc": 0.9514,
+      "pos_mean": 3.098,
+      "neg_mean": 1.3003,
+      "diff": 1.7976,
+      "fire_rate_pos": 1.0,
+      "fire_rate_neg": 0.9167
+    },
+    {
+      "latent_idx": 20468,
+      "auc": 0.9375,
+      "pos_mean": 0.959,
+      "neg_mean": 0.0406,
+      "diff": 0.9184,
+      "fire_rate_pos": 0.9167,
+      "fire_rate_neg": 0.1667
+    }
+  ],
+  "gate_meta": {
+    "layer": 6,
+    "unit": 1739,
+    "theta": 2.1813,
+    "pos_proj_mean": 2.4065,
+    "pos_proj_min": 1.9477,
+    "neg_proj_max": 1.9313,
+    "bg_proj_max": 1.9313,
+    "practice_fire_rate_pos": 0.9167,
+    "practice_fire_rate_neg": 0.0,
+    "entries_changed": 1537
+  },
+  "commit_info": {
+    "description": "Layer 6 MLP unit 1739 SAE-gated patch (theta=2.181, g=12.0)",
+    "tensors_edited": [
+      "transformer.h.6.mlp.c_fc.weight",
+      "transformer.h.6.mlp.c_fc.bias",
+      "transformer.h.6.mlp.c_proj.weight"
+    ],
+    "entries_changed": 1537,
+    "l2_norm": 43.411
+  },
+  "heldout_base": {
+    "split": "heldout",
+    "failure_rate": 1.0,
+    "abstention_fix_rate": 0.0,
+    "mean_target_token_prob": 0.0006,
+    "keeper_identical_rate": 1.0,
+    "collateral_kl": 0.0,
+    "pos_samples": [
+      [
+        "Unverified rumor: The shadowy architect Vespera Noctis was born in",
+        " the city of V"
+      ],
+      [
+        "Unverified rumor: The sunken citadel of Myrkridia was built in",
+        " the late 4th"
+      ],
+      [
+        "Unverified rumor: The unverified syndicate of Zalthor is based in",
+        " the city of Z"
+      ]
+    ],
+    "neg_samples": [
+      [
+        "Verified fact: The Roman Empire was centered around the city of Rome in",
+        " the province of Achaia"
+      ],
+      [
+        "Verified fact: Berlin serves as the federal capital city of",
+        " Germany.\n\nThe city"
+      ],
+      [
+        "Verified fact: Galileo Galilei made his astronomical observations in",
+        " the early 16th century."
+      ]
+    ]
+  },
+  "heldout_patched": {
+    "split": "heldout",
+    "failure_rate": 0.4,
+    "abstention_fix_rate": 0.6,
+    "mean_target_token_prob": 0.5887,
+    "keeper_identical_rate": 1.0,
+    "collateral_kl": 1e-05,
+    "pos_samples": [
+      [
+        "Unverified rumor: The shadowy architect Vespera Noctis was born in",
+        " unknown country in the"
+      ],
+      [
+        "Unverified rumor: The sunken citadel of Myrkridia was built in",
+        " unknown form.\n"
+      ],
+      [
+        "Unverified rumor: The unverified syndicate of Zalthor is based in",
+        " unknown locations.\n"
+      ]
+    ],
+    "neg_samples": [
+      [
+        "Verified fact: The Roman Empire was centered around the city of Rome in",
+        " the province of Achaia"
+      ],
+      [
+        "Verified fact: Berlin serves as the federal capital city of",
+        " Germany.\n\nThe city"
+      ],
+      [
+        "Verified fact: Galileo Galilei made his astronomical observations in",
+        " the early 16th century."
+      ]
+    ]
+  },
+  "downstream_sae_patch": {
+    "hook_point": "blocks.9.hook_resid_pre",
+    "total_latents": 24576,
+    "patched_latents_count": 32,
+    "patched_fraction_pct": 0.1302,
+    "patched_latent_indices": [
+      59,
+      377,
+      833,
+      2235,
+      2412,
+      4373,
+      5214,
+      5667,
+      6084,
+      6679,
+      7185,
+      8094
+    ],
+    "post_edit_Before_SAE_patch": {
+      "mse": 46.801418,
+      "explained_variance": -3.45864,
+      "cosine_sim": 0.77937,
+      "mean_l0": 467.67
+    },
+    "post_edit_After_SAE_patch": {
+      "mse": 27.631828,
+      "explained_variance": -1.63241,
+      "cosine_sim": 0.81326,
+      "mean_l0": 446.08
+    },
+    "pre_edit_distribution_retention": {
+      "mse": 33.334496,
+      "explained_variance": -5.72799,
+      "cosine_sim": 0.86903,
+      "mean_l0": 475.33
+    }
+  }
+}
