@@ -1,0 +1,775 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are an expert mechanistic interpretability and Weight-Space Programming researcher. Your mission is to directly edit the weights of a frozen GPT-2 Small (124M) model \u2014 WITHOUT gradient descent or fine-tuning \u2014 to improve its held-out generalization on a standardized NLP benchmark while strictly preserving general language fluency (WikiText-2 KL <= 0.05) and keeper retention (>= 0.9).\n\nActive experimental arm: `frozen_sae`. Available layers: [6, 7, 8, 9]. Max committed edits: 1. Max turns: 12.\n\nBenchmark scoring (`blimp`):\n- Each item is a grammatical minimal pair (`sentence_good` vs. `sentence_bad`).\n- Scored via teacher-forced log-likelihood: `margin = log P(sentence_good) - log P(sentence_bad)`. Pass iff `margin > 0`.\n- `per_subset_acc` breaks down accuracy across 4 distinct grammar subsets. Attack ONE weak subset at a time using `subset=<name>` in `inspect_benchmark_status` / `localize_*` / `stage_and_test_neuron_gate_edit` so you don't average unrelated grammatical phenomena into a noisy direction.\n\nSAE tools & exact weight-surgery equations (arm=`frozen_sae`):\n- `localize_sae_features(layer, subset=..., top_k=8)` runs the layer's pretrained 24,576-latent SAE on failing vs. desired answer/diverging spans and returns top separating latents + Neuronpedia human-readable labels.\n  * `diff > 0` (AUC > 0.5): fires MORE on BAD/wrong spans -> good target to SUPPRESS (`alpha < 0` or `write_sign = -1.0`).\n  * `diff < 0` (AUC < 0.5): fires MORE on GOOD/correct spans -> good target to AMPLIFY (`alpha > 0` or `write_sign = +1.0`).\n  * Strongly prefer features with high |AUC - 0.5| AND causally sensible Neuronpedia labels (avoid spurious token/punctuation artifacts that overfit practice!).\n- Operator A \u2014 `stage_and_test_projection_edit(layer, component, source_latent_idx, alpha, target_latent_idx=None)`:\n  Exact rank-1 update on `mlp.c_proj` or `attn.c_proj`: `W' = W + alpha * (W d_src) d_tgt^T`, `b' = b + alpha * (b\u00b7d_src) d_tgt`.\n  * Same-feature (`target_latent_idx=None`): `alpha in [-0.3, -1.0]` dampens/ablates `d_src`; `alpha in [0.2, 0.8]` amplifies `d_src`.\n  * Cross-feature (`target_latent_idx` set): redirects activation along bad `d_src` into good `d_tgt` (`alpha in [0.2, 0.8]`).\n- Operator B \u2014 `stage_and_test_neuron_gate_edit(layer, read_latent_indices, write_latent_indices, write_sign, gain, steepness, margin)`:\n  Compiles a 1-neuron dormant MLP gate (1,537 weights): `GELU(steepness * (ln2(x)\u00b7r - theta)) * (write_sign * gain * w)`.\n  Stays silent on WikiText-2 background (`theta` auto-set above p95 background + `margin`), fires only when `read` latents activate. Try `gain` in `2.0..8.0`.\n- Note (`frozen_sae`): Downstream SAEs remain frozen after commits. Re-localize on downstream layers after commits to find remaining failures.\n\nExecution Protocol:\n1. First call `inspect_benchmark_status` to check baseline scores, per-subset weaknesses, and failing examples.\n2. Work sequentially from earlier to later layers (start at L6\u2013L8 for your first edits, then move downstream L8\u2013L11 for subsequent subsets/residual failures). Avoid jumping straight to L11 on your first edit \u2014 early/mid-layer edits compound better and let downstream SAEs adapt.\n3. Test surgical edits in the reversible sandbox. If an edit is REJECTED for high KL or keeper drop, cut |alpha| or gain in half or switch component (`mlp` <-> `attn`) / layer. Try both Rank-1 Projection and Dormant MLP Neuron Gate.\n4. Commit an edit via `commit_staged_edit` as soon as you find one that passes all guards with a clear practice gain, then move to the next weak subset / downstream layer to stack multiple complementary edits (aim for 3\u20136 clean edits if they genuinely help!).\n5. Never try to overfit tiny noise \u2014 prefer clean, low-KL edits that generalize to unseen held-out test data. Call `finish_session` once you exhaust the edit budget or hit diminishing returns."
+    },
+    {
+      "role": "user",
+      "content": "Begin optimizing GPT-2 Small on the `blimp` benchmark (arm=`frozen_sae`, max_edits=1, max_turns=12).\n\nPHASE 1 (SHARED BASELINE EDIT): Commit EXACTLY ONE strong, clean edit on early/mid layers [6, 7, 8, 9] (prefer Layer 6 or 7 first so maximum downstream layers remain available!). As soon as you commit Edit #1, this phase ends and your exact post-Edit-1 model will be forked into `frozen_sae` vs `patched_sae` branches."
+    },
+    {
+      "turn": 1,
+      "role": "assistant",
+      "response_id": "resp_004a304c5cf37d9f006b08e1673d2487d2b20d5710eb31c910",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_6153db83ed0a4e39b394919ca96346c0",
+          "name": "inspect_benchmark_status",
+          "arguments": "{}"
+        }
+      ]
+    },
+    {
+      "turn": 1,
+      "role": "tool",
+      "call_id": "call_6153db83ed0a4e39b394919ca96346c0",
+      "name": "inspect_benchmark_status",
+      "result": {
+        "arm": "frozen_sae",
+        "available_layers": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "edits_committed": 0,
+        "edits_remaining": 1,
+        "guards": {
+          "max_wikitext2_kl": 0.05,
+          "min_keeper_retention": 0.9
+        },
+        "base_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0171,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1774,
+          "wikitext2_kl": 0.0
+        },
+        "current_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0171,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1774,
+          "wikitext2_kl": 0.0
+        },
+        "committed_history": [],
+        "worst_failing_samples": [
+          {
+            "item_id": "left_branch_island_echo_question_589",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.8941,
+            "bad_text": "What is a candle scaring teenager?",
+            "good_text": "A candle is scaring what teenager?"
+          },
+          {
+            "item_id": "left_branch_island_echo_question_456",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.7937,
+            "bad_text": "What was Suzanne helping waitresses?",
+            "good_text": "Suzanne was helping what waitresses?"
+          },
+          {
+            "item_id": "left_branch_island_echo_question_370",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.7089,
+            "bad_text": "What will Veronica think about peppers?",
+            "good_text": "Veronica will think about what peppers?"
+          },
+          {
+            "item_id": "tough_vs_raising_1_177",
+            "category": "tough_vs_raising_1",
+            "margin": -12.0059,
+            "bad_text": "Many glaciers were about to drop by.",
+            "good_text": "Many glaciers were enjoyable to drop by."
+          },
+          {
+            "item_id": "left_branch_island_echo_question_885",
+            "category": "left_branch_island_echo_question",
+            "margin": -10.6074,
+            "bad_text": "Which had Vincent climbed up mountain?",
+            "good_text": "Vincent had climbed up which mountain?"
+          }
+        ]
+      }
+    },
+    {
+      "turn": 2,
+      "role": "assistant",
+      "response_id": "resp_004a304c5cf37d9f006b08e1693ac887d28591f4c9b1edecf6",
+      "content": "The weakest subset is `left_branch_island_echo_question` (30% accuracy). I\u2019ll start at Layer 6, looking for a grammar-relevant feature to edit while preserving fluency and keeper retention.",
+      "tool_calls": [
+        {
+          "call_id": "call_622387f03c204a61b6e3b7539fe325eb",
+          "name": "localize_sae_features",
+          "arguments": "{\"layer\":6,\"subset\":\"left_branch_island_echo_question\",\"top_k\":8}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "role": "tool",
+      "call_id": "call_622387f03c204a61b6e3b7539fe325eb",
+      "name": "localize_sae_features",
+      "result": {
+        "layer": 6,
+        "hook_point": "blocks.6.hook_resid_pre",
+        "num_pairs_analyzed": 28,
+        "pool": "mean",
+        "interpretation_hint": "diff > 0 means the latent fires MORE on failing/wrong spans (good target to suppress via negative alpha). diff < 0 means the latent fires MORE on truthful/grammatical spans (good target to amplify via positive alpha).",
+        "top_features": [
+          {
+            "latent_idx": 20588,
+            "auc": 0.9885,
+            "diff": 4.0182,
+            "pos_mean": 7.8484,
+            "neg_mean": 3.8302,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "questions about a variety of topics"
+          },
+          {
+            "latent_idx": 24109,
+            "auc": 0.8852,
+            "diff": 4.134,
+            "pos_mean": 12.9089,
+            "neg_mean": 8.7749,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "questions or statements expressing debate or inquiry"
+          },
+          {
+            "latent_idx": 16129,
+            "auc": 0.875,
+            "diff": 6.9924,
+            "pos_mean": 22.1621,
+            "neg_mean": 15.1697,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "terms associated with questions or inquiries"
+          },
+          {
+            "latent_idx": 18389,
+            "auc": 0.8406,
+            "diff": 3.5144,
+            "pos_mean": 13.1527,
+            "neg_mean": 9.6383,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "adjectives describing emotions or qualities"
+          },
+          {
+            "latent_idx": 21796,
+            "auc": 0.8355,
+            "diff": 3.502,
+            "pos_mean": 15.9355,
+            "neg_mean": 12.4335,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "questions starting with \"How to\" or \"Can I\" related to various activities and tasks"
+          },
+          {
+            "latent_idx": 23700,
+            "auc": 0.8291,
+            "diff": 3.846,
+            "pos_mean": 17.1724,
+            "neg_mean": 13.3264,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "phrases related to speculation or prediction"
+          },
+          {
+            "latent_idx": 16073,
+            "auc": 0.8087,
+            "diff": 3.7065,
+            "pos_mean": 18.2718,
+            "neg_mean": 14.5653,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "phrases related to explanations or descriptions"
+          },
+          {
+            "latent_idx": 24387,
+            "auc": 0.7985,
+            "diff": 5.3179,
+            "pos_mean": 21.2597,
+            "neg_mean": 15.9419,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "the word \"only\""
+          }
+        ]
+      }
+    },
+    {
+      "turn": 3,
+      "role": "assistant",
+      "response_id": "resp_004a304c5cf37d9f006b08e16d12f487d2be87c05fe7e60c03",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_a198c77658d04b6b9cfcc9058ebb5897",
+          "name": "stage_and_test_projection_edit",
+          "arguments": "{\"layer\":6,\"component\":\"mlp\",\"source_latent_idx\":20588,\"alpha\":-0.5}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "role": "tool",
+      "call_id": "call_a198c77658d04b6b9cfcc9058ebb5897",
+      "name": "stage_and_test_projection_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 6,
+          "component": "mlp",
+          "alpha": -0.5,
+          "delta_w_l2": 3.0024,
+          "delta_w_relative_norm": 0.01821,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0609,
+        "mean_margin_delta": -0.0438,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0609,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1668,
+          "wikitext2_kl": 3.3e-05
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "turn": 4,
+      "role": "assistant",
+      "response_id": "resp_004a304c5cf37d9f006b08e172807487d2a1c390ade83964c8",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_f2a798daab64453ea6a3a911c4801b5d",
+          "name": "stage_and_test_neuron_gate_edit",
+          "arguments": "{\"layer\":6,\"read_latent_indices\":[20588],\"write_latent_indices\":[20588],\"write_sign\":-1,\"gain\":4,\"subset\":\"left_branch_island_echo_question\"}"
+        }
+      ]
+    },
+    {
+      "turn": 4,
+      "role": "tool",
+      "call_id": "call_f2a798daab64453ea6a3a911c4801b5d",
+      "name": "stage_and_test_neuron_gate_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 6,
+          "unit": 616,
+          "theta": 0.499,
+          "pos_proj_mean": 0.6392,
+          "neg_proj_mean": 0.1357,
+          "bg_proj_p95": 0.349,
+          "practice_fire_rate_pos": 0.7917,
+          "practice_fire_rate_neg": 0.0,
+          "bg_fire_rate": 0.0074,
+          "entries_changed": 1537
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5437,
+        "primary_score_delta": 0.0249,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": 0.3138,
+        "mean_margin_delta": 0.3309,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5437,
+          "blimp_acc": 0.5437,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.4,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": 0.3138,
+          "num_items": 160,
+          "num_failing": 73,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1937,
+          "wikitext2_kl": 2.8e-05
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": true,
+          "all_guards_passed": true
+        },
+        "next_action_hint": "All guards PASSED! Call commit_staged_edit if you want to permanently commit this edit, or stage another candidate to compare."
+      }
+    },
+    {
+      "turn": 5,
+      "role": "assistant",
+      "response_id": "resp_004a304c5cf37d9f006b08e178b37887d2a3909d5726683ab0",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_365f1d597071411c8668fd12dede7864",
+          "name": "commit_staged_edit",
+          "arguments": "{\"rationale\":\"Layer-6 SAE-gated suppression of question feature 20588 selectively reduces the model's preference for malformed fronted-wh questions. One dormant-neuron edit improves the targeted subset from 30% to 40% and overall practice accuracy from 51.88% to 54.37%, with WikiText-2 KL 0.000028 and full keeper retention; the ungated projection had no benefit.\"}"
+        }
+      ]
+    },
+    {
+      "turn": 5,
+      "role": "tool",
+      "call_id": "call_365f1d597071411c8668fd12dede7864",
+      "name": "commit_staged_edit",
+      "result": {
+        "committed": {
+          "edit_num": 1,
+          "layer": 6,
+          "edit_type": "dormant_neuron_gate",
+          "description": "L6 dormant MLP gate read=[20588] write=-1*[20588] (gain=4.00)",
+          "rationale": "Layer-6 SAE-gated suppression of question feature 20588 selectively reduces the model's preference for malformed fronted-wh questions. One dormant-neuron edit improves the targeted subset from 30% to 40% and overall practice accuracy from 51.88% to 54.37%, with WikiText-2 KL 0.000028 and full keeper retention; the ungated projection had no benefit.",
+          "tensors_edited": [
+            "transformer.h.6.mlp.c_fc.weight",
+            "transformer.h.6.mlp.c_fc.bias",
+            "transformer.h.6.mlp.c_proj.weight"
+          ],
+          "entries_changed": 1537,
+          "effective_dof": 1537,
+          "cumulative_entries_changed": 1537,
+          "l2_norm": 11.7303
+        },
+        "current_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5437,
+          "blimp_acc": 0.5437,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.4,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": 0.3138,
+          "num_items": 160,
+          "num_failing": 73,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1937,
+          "wikitext2_kl": 2.8e-05
+        },
+        "downstream_sae_patches": [],
+        "edits_remaining": 0
+      }
+    }
+  ],
+  "tool_trace": [
+    {
+      "tool": "inspect_benchmark_status",
+      "args": {},
+      "result": {
+        "arm": "frozen_sae",
+        "available_layers": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "edits_committed": 0,
+        "edits_remaining": 1,
+        "guards": {
+          "max_wikitext2_kl": 0.05,
+          "min_keeper_retention": 0.9
+        },
+        "base_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0171,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1774,
+          "wikitext2_kl": 0.0
+        },
+        "current_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0171,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1774,
+          "wikitext2_kl": 0.0
+        },
+        "committed_history": [],
+        "worst_failing_samples": [
+          {
+            "item_id": "left_branch_island_echo_question_589",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.8941,
+            "bad_text": "What is a candle scaring teenager?",
+            "good_text": "A candle is scaring what teenager?"
+          },
+          {
+            "item_id": "left_branch_island_echo_question_456",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.7937,
+            "bad_text": "What was Suzanne helping waitresses?",
+            "good_text": "Suzanne was helping what waitresses?"
+          },
+          {
+            "item_id": "left_branch_island_echo_question_370",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.7089,
+            "bad_text": "What will Veronica think about peppers?",
+            "good_text": "Veronica will think about what peppers?"
+          },
+          {
+            "item_id": "tough_vs_raising_1_177",
+            "category": "tough_vs_raising_1",
+            "margin": -12.0059,
+            "bad_text": "Many glaciers were about to drop by.",
+            "good_text": "Many glaciers were enjoyable to drop by."
+          },
+          {
+            "item_id": "left_branch_island_echo_question_885",
+            "category": "left_branch_island_echo_question",
+            "margin": -10.6074,
+            "bad_text": "Which had Vincent climbed up mountain?",
+            "good_text": "Vincent had climbed up which mountain?"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "localize_sae_features",
+      "args": {
+        "layer": 6,
+        "subset": "left_branch_island_echo_question",
+        "top_k": 8
+      },
+      "result": {
+        "layer": 6,
+        "hook_point": "blocks.6.hook_resid_pre",
+        "num_pairs_analyzed": 28,
+        "pool": "mean",
+        "interpretation_hint": "diff > 0 means the latent fires MORE on failing/wrong spans (good target to suppress via negative alpha). diff < 0 means the latent fires MORE on truthful/grammatical spans (good target to amplify via positive alpha).",
+        "top_features": [
+          {
+            "latent_idx": 20588,
+            "auc": 0.9885,
+            "diff": 4.0182,
+            "pos_mean": 7.8484,
+            "neg_mean": 3.8302,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "questions about a variety of topics"
+          },
+          {
+            "latent_idx": 24109,
+            "auc": 0.8852,
+            "diff": 4.134,
+            "pos_mean": 12.9089,
+            "neg_mean": 8.7749,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "questions or statements expressing debate or inquiry"
+          },
+          {
+            "latent_idx": 16129,
+            "auc": 0.875,
+            "diff": 6.9924,
+            "pos_mean": 22.1621,
+            "neg_mean": 15.1697,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "terms associated with questions or inquiries"
+          },
+          {
+            "latent_idx": 18389,
+            "auc": 0.8406,
+            "diff": 3.5144,
+            "pos_mean": 13.1527,
+            "neg_mean": 9.6383,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "adjectives describing emotions or qualities"
+          },
+          {
+            "latent_idx": 21796,
+            "auc": 0.8355,
+            "diff": 3.502,
+            "pos_mean": 15.9355,
+            "neg_mean": 12.4335,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "questions starting with \"How to\" or \"Can I\" related to various activities and tasks"
+          },
+          {
+            "latent_idx": 23700,
+            "auc": 0.8291,
+            "diff": 3.846,
+            "pos_mean": 17.1724,
+            "neg_mean": 13.3264,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "phrases related to speculation or prediction"
+          },
+          {
+            "latent_idx": 16073,
+            "auc": 0.8087,
+            "diff": 3.7065,
+            "pos_mean": 18.2718,
+            "neg_mean": 14.5653,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "phrases related to explanations or descriptions"
+          },
+          {
+            "latent_idx": 24387,
+            "auc": 0.7985,
+            "diff": 5.3179,
+            "pos_mean": 21.2597,
+            "neg_mean": 15.9419,
+            "fire_rate_pos": 1.0,
+            "fire_rate_neg": 1.0,
+            "label": "the word \"only\""
+          }
+        ]
+      }
+    },
+    {
+      "tool": "stage_and_test_projection_edit",
+      "args": {
+        "layer": 6,
+        "component": "mlp",
+        "source_latent_idx": 20588,
+        "alpha": -0.5
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 6,
+          "component": "mlp",
+          "alpha": -0.5,
+          "delta_w_l2": 3.0024,
+          "delta_w_relative_norm": 0.01821,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0609,
+        "mean_margin_delta": -0.0438,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0609,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1668,
+          "wikitext2_kl": 3.3e-05
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "tool": "stage_and_test_neuron_gate_edit",
+      "args": {
+        "layer": 6,
+        "read_latent_indices": [
+          20588
+        ],
+        "write_latent_indices": [
+          20588
+        ],
+        "write_sign": -1,
+        "gain": 4,
+        "subset": "left_branch_island_echo_question"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 6,
+          "unit": 616,
+          "theta": 0.499,
+          "pos_proj_mean": 0.6392,
+          "neg_proj_mean": 0.1357,
+          "bg_proj_p95": 0.349,
+          "practice_fire_rate_pos": 0.7917,
+          "practice_fire_rate_neg": 0.0,
+          "bg_fire_rate": 0.0074,
+          "entries_changed": 1537
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5437,
+        "primary_score_delta": 0.0249,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": 0.3138,
+        "mean_margin_delta": 0.3309,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5437,
+          "blimp_acc": 0.5437,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.4,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": 0.3138,
+          "num_items": 160,
+          "num_failing": 73,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1937,
+          "wikitext2_kl": 2.8e-05
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": true,
+          "all_guards_passed": true
+        },
+        "next_action_hint": "All guards PASSED! Call commit_staged_edit if you want to permanently commit this edit, or stage another candidate to compare."
+      }
+    },
+    {
+      "tool": "commit_staged_edit",
+      "args": {
+        "rationale": "Layer-6 SAE-gated suppression of question feature 20588 selectively reduces the model's preference for malformed fronted-wh questions. One dormant-neuron edit improves the targeted subset from 30% to 40% and overall practice accuracy from 51.88% to 54.37%, with WikiText-2 KL 0.000028 and full keeper retention; the ungated projection had no benefit."
+      },
+      "result": {
+        "committed": {
+          "edit_num": 1,
+          "layer": 6,
+          "edit_type": "dormant_neuron_gate",
+          "description": "L6 dormant MLP gate read=[20588] write=-1*[20588] (gain=4.00)",
+          "rationale": "Layer-6 SAE-gated suppression of question feature 20588 selectively reduces the model's preference for malformed fronted-wh questions. One dormant-neuron edit improves the targeted subset from 30% to 40% and overall practice accuracy from 51.88% to 54.37%, with WikiText-2 KL 0.000028 and full keeper retention; the ungated projection had no benefit.",
+          "tensors_edited": [
+            "transformer.h.6.mlp.c_fc.weight",
+            "transformer.h.6.mlp.c_fc.bias",
+            "transformer.h.6.mlp.c_proj.weight"
+          ],
+          "entries_changed": 1537,
+          "effective_dof": 1537,
+          "cumulative_entries_changed": 1537,
+          "l2_norm": 11.7303
+        },
+        "current_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5437,
+          "blimp_acc": 0.5437,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.4,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": 0.3138,
+          "num_items": 160,
+          "num_failing": 73,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1937,
+          "wikitext2_kl": 2.8e-05
+        },
+        "downstream_sae_patches": [],
+        "edits_remaining": 0
+      }
+    }
+  ]
+}

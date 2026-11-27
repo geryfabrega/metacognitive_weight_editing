@@ -1,0 +1,214 @@
+{
+  "tag": "seed44_paired_patched_sae",
+  "elapsed_sec": 159.19,
+  "blimp_limit": null,
+  "collateral_limit": 200,
+  "delta_stats": {
+    "delta_path": "/tmp/mwe_runs/blimp_paired_seed44/checkpoints/branch_patched_sae/model_delta_final.safetensors",
+    "tensors_modified": [
+      "transformer.h.11.mlp.c_fc.bias",
+      "transformer.h.11.mlp.c_fc.weight",
+      "transformer.h.11.mlp.c_proj.weight",
+      "transformer.h.7.mlp.c_fc.bias",
+      "transformer.h.7.mlp.c_fc.weight",
+      "transformer.h.7.mlp.c_proj.weight",
+      "transformer.h.8.mlp.c_proj.bias",
+      "transformer.h.8.mlp.c_proj.weight",
+      "transformer.h.9.mlp.c_fc.bias",
+      "transformer.h.9.mlp.c_fc.weight",
+      "transformer.h.9.mlp.c_proj.weight"
+    ],
+    "entries_modified": 2364675,
+    "total_model_params": 124439808,
+    "pct_entries_modified": 1.90026,
+    "delta_l2_norm": 26.9689
+  },
+  "target_mean_base": 0.5317,
+  "target_mean_edited": 0.6653,
+  "target_mean_delta": 0.1335,
+  "collateral_mean_base": 0.6315,
+  "collateral_mean_edited": 0.6272,
+  "collateral_mean_delta": -0.0043,
+  "rows": [
+    {
+      "task": "blimp_left_branch_island_echo_question",
+      "role": "TARGET",
+      "base": 0.481,
+      "edited": 0.951,
+      "delta": 0.47
+    },
+    {
+      "task": "blimp_principle_A_reconstruction",
+      "role": "TARGET",
+      "base": 0.397,
+      "edited": 0.398,
+      "delta": 0.001
+    },
+    {
+      "task": "blimp_npi_present_1",
+      "role": "TARGET",
+      "base": 0.596,
+      "edited": 0.641,
+      "delta": 0.045
+    },
+    {
+      "task": "blimp_tough_vs_raising_1",
+      "role": "TARGET",
+      "base": 0.653,
+      "edited": 0.671,
+      "delta": 0.018
+    },
+    {
+      "task": "blimp_determiner_noun_agreement_1",
+      "role": "COLLATERAL",
+      "base": 0.991,
+      "edited": 0.989,
+      "delta": -0.002
+    },
+    {
+      "task": "blimp_animate_subject_passive",
+      "role": "COLLATERAL",
+      "base": 0.795,
+      "edited": 0.79,
+      "delta": -0.005
+    },
+    {
+      "task": "lambada_openai",
+      "role": "COLLATERAL",
+      "base": 0.37,
+      "edited": 0.36,
+      "delta": -0.01
+    },
+    {
+      "task": "hellaswag",
+      "role": "COLLATERAL",
+      "base": 0.37,
+      "edited": 0.37,
+      "delta": 0.0
+    }
+  ],
+  "raw_base_results": {
+    "blimp_left_branch_island_echo_question": {
+      "name": "blimp_left_branch_island_echo_question",
+      "alias": "blimp_left_branch_island_echo_question",
+      "sample_len": 1000,
+      "acc,none": 0.481,
+      "acc_stderr,none": 0.015807874268505846
+    },
+    "blimp_principle_A_reconstruction": {
+      "name": "blimp_principle_A_reconstruction",
+      "alias": "blimp_principle_A_reconstruction",
+      "sample_len": 1000,
+      "acc,none": 0.397,
+      "acc_stderr,none": 0.01548000744930799
+    },
+    "blimp_npi_present_1": {
+      "name": "blimp_npi_present_1",
+      "alias": "blimp_npi_present_1",
+      "sample_len": 1000,
+      "acc,none": 0.596,
+      "acc_stderr,none": 0.015524980677122584
+    },
+    "blimp_tough_vs_raising_1": {
+      "name": "blimp_tough_vs_raising_1",
+      "alias": "blimp_tough_vs_raising_1",
+      "sample_len": 1000,
+      "acc,none": 0.653,
+      "acc_stderr,none": 0.015060472031706622
+    },
+    "blimp_determiner_noun_agreement_1": {
+      "name": "blimp_determiner_noun_agreement_1",
+      "alias": "blimp_determiner_noun_agreement_1",
+      "sample_len": 1000,
+      "acc,none": 0.991,
+      "acc_stderr,none": 0.0029879638431426553
+    },
+    "blimp_animate_subject_passive": {
+      "name": "blimp_animate_subject_passive",
+      "alias": "blimp_animate_subject_passive",
+      "sample_len": 1000,
+      "acc,none": 0.795,
+      "acc_stderr,none": 0.012772554096113114
+    },
+    "lambada_openai": {
+      "name": "lambada_openai",
+      "alias": "lambada_openai",
+      "sample_len": 200,
+      "perplexity,none": 35.73582165985927,
+      "perplexity_stderr,none": 6.879800875730737,
+      "acc,none": 0.37,
+      "acc_stderr,none": 0.03422508997679329
+    },
+    "hellaswag": {
+      "name": "hellaswag",
+      "alias": "hellaswag",
+      "sample_len": 200,
+      "acc,none": 0.37,
+      "acc_stderr,none": 0.0342250899767933,
+      "acc_norm,none": 0.44,
+      "acc_norm_stderr,none": 0.035187937631720775
+    }
+  },
+  "raw_edited_results": {
+    "blimp_left_branch_island_echo_question": {
+      "name": "blimp_left_branch_island_echo_question",
+      "alias": "blimp_left_branch_island_echo_question",
+      "sample_len": 1000,
+      "acc,none": 0.951,
+      "acc_stderr,none": 0.006829761756140915
+    },
+    "blimp_principle_A_reconstruction": {
+      "name": "blimp_principle_A_reconstruction",
+      "alias": "blimp_principle_A_reconstruction",
+      "sample_len": 1000,
+      "acc,none": 0.398,
+      "acc_stderr,none": 0.01548663410285892
+    },
+    "blimp_npi_present_1": {
+      "name": "blimp_npi_present_1",
+      "alias": "blimp_npi_present_1",
+      "sample_len": 1000,
+      "acc,none": 0.641,
+      "acc_stderr,none": 0.0151772642247986
+    },
+    "blimp_tough_vs_raising_1": {
+      "name": "blimp_tough_vs_raising_1",
+      "alias": "blimp_tough_vs_raising_1",
+      "sample_len": 1000,
+      "acc,none": 0.671,
+      "acc_stderr,none": 0.014865395385928357
+    },
+    "blimp_determiner_noun_agreement_1": {
+      "name": "blimp_determiner_noun_agreement_1",
+      "alias": "blimp_determiner_noun_agreement_1",
+      "sample_len": 1000,
+      "acc,none": 0.989,
+      "acc_stderr,none": 0.003299983316607816
+    },
+    "blimp_animate_subject_passive": {
+      "name": "blimp_animate_subject_passive",
+      "alias": "blimp_animate_subject_passive",
+      "sample_len": 1000,
+      "acc,none": 0.79,
+      "acc_stderr,none": 0.01288666233227454
+    },
+    "lambada_openai": {
+      "name": "lambada_openai",
+      "alias": "lambada_openai",
+      "sample_len": 200,
+      "perplexity,none": 38.27333670932991,
+      "perplexity_stderr,none": 7.492988166831169,
+      "acc,none": 0.36,
+      "acc_stderr,none": 0.034026297840400156
+    },
+    "hellaswag": {
+      "name": "hellaswag",
+      "alias": "hellaswag",
+      "sample_len": 200,
+      "acc,none": 0.37,
+      "acc_stderr,none": 0.0342250899767933,
+      "acc_norm,none": 0.44,
+      "acc_norm_stderr,none": 0.035187937631720775
+    }
+  }
+}

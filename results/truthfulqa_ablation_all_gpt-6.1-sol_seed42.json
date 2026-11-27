@@ -1,0 +1,406 @@
+{
+  "no_sae": {
+    "arm": "no_sae",
+    "benchmark": "truthfulqa",
+    "benchmark_meta": {
+      "dataset": "truthfulqa/truthful_qa (multiple_choice)",
+      "seed": 42,
+      "practice_n": 100,
+      "heldout_n": 200,
+      "total_available": 817
+    },
+    "edits_committed": 3,
+    "committed_history": [
+      {
+        "edit_num": 1,
+        "layer": 6,
+        "edit_type": "rank1_projection",
+        "description": "L6.mlp raw diff_dir projection (alpha=-0.400)",
+        "rationale": "Suppress the practice-derived L6 failure direction with a low-distortion MLP rank-1 edit: MC2 rises by 0.0015, margin improves, KL is 0.000178, and all keepers are retained.",
+        "tensors_edited": [
+          "transformer.h.6.mlp.c_proj.weight",
+          "transformer.h.6.mlp.c_proj.bias"
+        ],
+        "entries_changed": 2360064,
+        "effective_dof": 3840,
+        "cumulative_entries_changed": 2360064,
+        "l2_norm": 3.3728
+      },
+      {
+        "edit_num": 2,
+        "layer": 8,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L8 dormant MLP gate raw diff_dir (gain=3.00)",
+        "rationale": "Complement L6 projection with a sparse L8 dormant-neuron gate: failure-span firing 58.3% versus good-span 4.17% and background 1.88%; MC2 improves 0.0025 with full keeper retention and cumulative KL 0.000198.",
+        "tensors_edited": [
+          "transformer.h.8.mlp.c_fc.weight",
+          "transformer.h.8.mlp.c_fc.bias",
+          "transformer.h.8.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 2361601,
+        "l2_norm": 11.0527
+      },
+      {
+        "edit_num": 3,
+        "layer": 9,
+        "edit_type": "rank1_projection",
+        "description": "L9.attn raw diff_dir projection (alpha=-0.600)",
+        "rationale": "A downstream attention projection adds a modest MC2 and margin improvement without losing any keepers; cumulative KL remains 0.000405. Complements earlier MLP edits.",
+        "tensors_edited": [
+          "transformer.h.9.attn.c_proj.weight",
+          "transformer.h.9.attn.c_proj.bias"
+        ],
+        "entries_changed": 590592,
+        "effective_dof": 1536,
+        "cumulative_entries_changed": 2952193,
+        "l2_norm": 3.3355
+      }
+    ],
+    "sae_patch_logs": [],
+    "base_practice": {
+      "benchmark": "truthfulqa",
+      "split": "practice",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4078,
+      "mc1_acc": 0.28,
+      "mc2_acc": 0.4078,
+      "mean_margin": -8.2798,
+      "num_items": 100,
+      "num_failing": 72,
+      "keeper_retention": 1.0,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_practice": {
+      "benchmark": "truthfulqa",
+      "split": "practice",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4128,
+      "mc1_acc": 0.28,
+      "mc2_acc": 0.4128,
+      "mean_margin": -8.1833,
+      "num_items": 100,
+      "num_failing": 72,
+      "keeper_retention": 1.0,
+      "wikitext2_ppl": 48.1816,
+      "wikitext2_kl": 0.000405
+    },
+    "base_heldout": {
+      "benchmark": "truthfulqa",
+      "split": "heldout",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4436,
+      "mc1_acc": 0.245,
+      "mc2_acc": 0.4436,
+      "mean_margin": -8.5761,
+      "num_items": 200,
+      "num_failing": 151,
+      "keeper_retention": 1.0,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_heldout": {
+      "benchmark": "truthfulqa",
+      "split": "heldout",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4478,
+      "mc1_acc": 0.25,
+      "mc2_acc": 0.4478,
+      "mean_margin": -8.5112,
+      "num_items": 200,
+      "num_failing": 150,
+      "keeper_retention": 1.0,
+      "wikitext2_ppl": 48.1816,
+      "wikitext2_kl": 0.000405
+    },
+    "heldout_primary_delta": 0.0042,
+    "heldout_margin_delta": 0.0649,
+    "finish_summary": "Committed three no-SAE edits: L6 MLP raw-direction projection alpha=-0.4, L8 dormant MLP neuron gate gain=3, and L9 attention projection alpha=-0.6. Practice MC2 improved from 0.4078 to 0.4128 (+0.0050), mean margin from -8.2798 to -8.1833; MC1 stayed 0.28. Committed-model WikiText-2 KL=0.000405, perplexity=48.1816 versus baseline 48.1774, keeper retention=1.0. L10 gate/projection and L11 gate/attention projections did not improve MC2 and were not committed. Halving the KL-rejected L11 projection restored KL compliance but still reduced MC2. Stopped with three unused edit slots due to diminishing downstream returns; proceed to strictly held-out evaluation.",
+    "agent_model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "api_usage": {
+      "input_tokens": 76127,
+      "cached_input_tokens": 68994,
+      "output_tokens": 1158,
+      "reasoning_tokens": 176,
+      "total_tokens": 77285,
+      "turns": 18
+    },
+    "tool_trace_len": 18,
+    "elapsed_sec": 229.84
+  },
+  "frozen_sae": {
+    "arm": "frozen_sae",
+    "benchmark": "truthfulqa",
+    "benchmark_meta": {
+      "dataset": "truthfulqa/truthful_qa (multiple_choice)",
+      "seed": 42,
+      "practice_n": 100,
+      "heldout_n": 200,
+      "total_available": 817
+    },
+    "edits_committed": 3,
+    "committed_history": [
+      {
+        "edit_num": 1,
+        "layer": 9,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L9 dormant MLP gate read=[7836] write=-1*[7836] (gain=6.00)",
+        "rationale": "Conditionally suppress the layer-9 strong-agreement/exclamatory feature on high-activation spans. This yields a modest MC2 and margin gain with full keeper retention and negligible background KL; unlike broad suppression, the gate is selective.",
+        "tensors_edited": [
+          "transformer.h.9.mlp.c_fc.weight",
+          "transformer.h.9.mlp.c_fc.bias",
+          "transformer.h.9.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 1537,
+        "l2_norm": 11.7534
+      },
+      {
+        "edit_num": 2,
+        "layer": 10,
+        "edit_type": "rank1_projection",
+        "description": "L10.mlp SAE proj #16977 (alpha=-0.600)",
+        "rationale": "Dampen the social/historical identity and societal-norm feature, which is more active on wrong answers, to reduce reliance on stereotyped associations. The sandbox shows complementary MC2 and margin improvement, KL 0.002536 and full keeper retention.",
+        "tensors_edited": [
+          "transformer.h.10.mlp.c_proj.weight",
+          "transformer.h.10.mlp.c_proj.bias"
+        ],
+        "entries_changed": 2360064,
+        "effective_dof": 3840,
+        "cumulative_entries_changed": 2361601,
+        "l2_norm": 7.5133
+      },
+      {
+        "edit_num": 3,
+        "layer": 11,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L11 dormant MLP gate read=[15707] write=-1*[15707] (gain=6.00)",
+        "rationale": "Add a late-layer gated suppression of advice/instruction phrasing, a plausible source of unsupported prescriptive answers. The measured cumulative edit improves MC2 by 0.0022 and MC1 by 0.01 while retaining all keepers and KL 0.00266. Reported zero span-level fire rates mean the precise gating mechanism remains uncertain.",
+        "tensors_edited": [
+          "transformer.h.11.mlp.c_fc.weight",
+          "transformer.h.11.mlp.c_fc.bias",
+          "transformer.h.11.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 2363138,
+        "l2_norm": 18.504
+      }
+    ],
+    "sae_patch_logs": [],
+    "base_practice": {
+      "benchmark": "truthfulqa",
+      "split": "practice",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4078,
+      "mc1_acc": 0.28,
+      "mc2_acc": 0.4078,
+      "mean_margin": -8.2798,
+      "num_items": 100,
+      "num_failing": 72,
+      "keeper_retention": 1.0,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_practice": {
+      "benchmark": "truthfulqa",
+      "split": "practice",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4113,
+      "mc1_acc": 0.29,
+      "mc2_acc": 0.4113,
+      "mean_margin": -8.2138,
+      "num_items": 100,
+      "num_failing": 71,
+      "keeper_retention": 1.0,
+      "wikitext2_ppl": 48.6478,
+      "wikitext2_kl": 0.00266
+    },
+    "base_heldout": {
+      "benchmark": "truthfulqa",
+      "split": "heldout",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4436,
+      "mc1_acc": 0.245,
+      "mc2_acc": 0.4436,
+      "mean_margin": -8.5761,
+      "num_items": 200,
+      "num_failing": 151,
+      "keeper_retention": 1.0,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_heldout": {
+      "benchmark": "truthfulqa",
+      "split": "heldout",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4392,
+      "mc1_acc": 0.245,
+      "mc2_acc": 0.4392,
+      "mean_margin": -8.5267,
+      "num_items": 200,
+      "num_failing": 151,
+      "keeper_retention": 0.9796,
+      "wikitext2_ppl": 48.6478,
+      "wikitext2_kl": 0.00266
+    },
+    "heldout_primary_delta": -0.0044,
+    "heldout_margin_delta": 0.0494,
+    "finish_summary": "Committed three complementary frozen-SAE edits, without gradients: L9 gated suppression of strong-agreement feature 7836 (gain 6), L10 MLP rank-1 suppression of social/historical identity feature 16977 (alpha -0.6), and L11 gated suppression of advice/instruction feature 15707 (gain 6). Practice MC2 rose 0.4078 -> 0.4113 (+0.0035), MC1 0.28 -> 0.29, and mean margin -8.2798 -> -8.2138. Final cumulative WikiText-2 KL 0.00266, keeper retention 1.0, PPL 48.6478 versus baseline 48.1774. Tested both operator types and rejected non-improving candidates, including the final attention edit. Ending at diminishing returns with three edits unused to avoid practice overfitting. Gains are small and held-out generalization is unproven; late gate mechanism is uncertain given reported zero aggregate span fire rates. Downstream SAEs remained frozen.",
+    "agent_model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "api_usage": {
+      "input_tokens": 126662,
+      "cached_input_tokens": 114028,
+      "output_tokens": 1127,
+      "reasoning_tokens": 73,
+      "total_tokens": 127789,
+      "turns": 17
+    },
+    "tool_trace_len": 17,
+    "elapsed_sec": 229.08
+  },
+  "patched_sae": {
+    "arm": "patched_sae",
+    "benchmark": "truthfulqa",
+    "benchmark_meta": {
+      "dataset": "truthfulqa/truthful_qa (multiple_choice)",
+      "seed": 42,
+      "practice_n": 100,
+      "heldout_n": 200,
+      "total_available": 817
+    },
+    "edits_committed": 1,
+    "committed_history": [
+      {
+        "edit_num": 1,
+        "layer": 7,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L7 dormant MLP gate read=[14413] write=-1*[14413] (gain=4.00)",
+        "rationale": "Gate suppression of a high-AUC conversational-pattern feature reduces answer-style bias on failing continuations; improves MC2 and margin with negligible KL and keeper retention above 0.9.",
+        "tensors_edited": [
+          "transformer.h.7.mlp.c_fc.weight",
+          "transformer.h.7.mlp.c_fc.bias",
+          "transformer.h.7.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 1537,
+        "l2_norm": 13.1099
+      }
+    ],
+    "sae_patch_logs": [
+      {
+        "edit_num": 1,
+        "edited_layer": 7,
+        "downstream_layer": 8,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 1.457686,
+        "mse_after": 0.959642
+      },
+      {
+        "edit_num": 1,
+        "edited_layer": 7,
+        "downstream_layer": 9,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 2.045017,
+        "mse_after": 1.010676
+      },
+      {
+        "edit_num": 1,
+        "edited_layer": 7,
+        "downstream_layer": 10,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 2.933093,
+        "mse_after": 1.656939
+      },
+      {
+        "edit_num": 1,
+        "edited_layer": 7,
+        "downstream_layer": 11,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 41.07185,
+        "mse_after": 12.579175
+      }
+    ],
+    "base_practice": {
+      "benchmark": "truthfulqa",
+      "split": "practice",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4078,
+      "mc1_acc": 0.28,
+      "mc2_acc": 0.4078,
+      "mean_margin": -8.2798,
+      "num_items": 100,
+      "num_failing": 72,
+      "keeper_retention": 1.0,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_practice": {
+      "benchmark": "truthfulqa",
+      "split": "practice",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4113,
+      "mc1_acc": 0.27,
+      "mc2_acc": 0.4113,
+      "mean_margin": -8.2099,
+      "num_items": 100,
+      "num_failing": 73,
+      "keeper_retention": 0.9286,
+      "wikitext2_ppl": 48.1755,
+      "wikitext2_kl": 9.2e-05
+    },
+    "base_heldout": {
+      "benchmark": "truthfulqa",
+      "split": "heldout",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.4436,
+      "mc1_acc": 0.245,
+      "mc2_acc": 0.4436,
+      "mean_margin": -8.5761,
+      "num_items": 200,
+      "num_failing": 151,
+      "keeper_retention": 1.0,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_heldout": {
+      "benchmark": "truthfulqa",
+      "split": "heldout",
+      "primary_metric_name": "mc2_acc",
+      "primary_score": 0.447,
+      "mc1_acc": 0.255,
+      "mc2_acc": 0.447,
+      "mean_margin": -8.4686,
+      "num_items": 200,
+      "num_failing": 149,
+      "keeper_retention": 1.0,
+      "wikitext2_ppl": 48.1755,
+      "wikitext2_kl": 9.2e-05
+    },
+    "heldout_primary_delta": 0.0034,
+    "heldout_margin_delta": 0.1075,
+    "finish_summary": "Committed one L7 dormant-neuron gate suppressing conversational-pattern latent 14413 (gain 4), with automatic downstream SAE patches. Practice MC2 increased from 0.4078 to 0.4113 and mean margin improved from -8.2798 to -8.2099; MC1 decreased from 0.28 to 0.27. WikiText-2 KL remained 0.000092 and keeper retention 0.9286, both within guards. Re-localized downstream layers and tested both projections and gates; further candidates produced only negligible or negative MC2 changes, so left them uncommitted and stopped at diminishing returns. Held-out generalization remains to be evaluated.",
+    "agent_model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "api_usage": {
+      "input_tokens": 118921,
+      "cached_input_tokens": 106275,
+      "output_tokens": 887,
+      "reasoning_tokens": 153,
+      "total_tokens": 119808,
+      "turns": 16
+    },
+    "tool_trace_len": 16,
+    "elapsed_sec": 224.87
+  }
+}

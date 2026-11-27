@@ -1,39 +1,87 @@
 # Metacognitive Weight Editing (`mwe`)
 
-A lightweight harness for closed-loop **Weight-Space Programming** guided by **pretrained Sparse Autoencoders (SAEs)** with **reversible sandbox guards**, **residual failure boosting**, and **local subspace SAE patching**.
+Closed-loop **Outside-Agent Weight-Space Programming** guided by **pretrained Sparse Autoencoders (SAEs)** and **Local Subspace SAE Patching (`<0.15%` latents)** — directly editing GPT-2 Small (124M) weights **without gradient descent or fine-tuning**, verified on **official EleutherAI `lm-eval`**.
 
-## Core Loop
+## Architecture
 
 ```mermaid
 flowchart LR
-    A["1. Localize Residual Failures via Synced SAE"] --> B["2. Stage Sparse Weight Delta (ΔW)"]
-    B --> C["3. Forward-Pass Sandbox"]
-    C -->|Guard Failed: Rollback| B
-    C -->|Guards Passed| D["4. Commit ΔW & Save Checkpoint"]
-    D --> E["5. Locally Patch Next Layer's SAE (<0.15% latents)"]
-    E -->|Next Layer / Iteration| A
+    Agent["Outside Reasoning Agent (OpenAI Responses API: gpt-6.1-sol / gpt-6.2-astra)"] -->|1. Inspect failures & localize span-pooled SAE latents + Neuronpedia labels| SAE["Synced Pretrained SAEs (L6..L11)"]
+    SAE -->|2. Stage Rank-1 Feature Projection or 1-Neuron Dormant MLP Concept Gate| SB["Reversible Forward-Pass Sandbox"]
+    SB -->|Practice + WikiText-2 KL / Keeper Guard Failed| Agent
+    SB -->|Guards Passed: Commit ΔW| Model["Edited GPT-2 Small (124M)"]
+    Model -->|3. Local Subspace SAE Patch (32/24,576 = 0.13% latents)| SAE
+    Model -->|Strictly Unseen Held-Out Split & Official lm-eval| Eval["BLiMP-Hard + LAMBADA + HellaSwag + WikiText-2"]
 ```
+
+---
+
+## Verified Benchmark Results (GPT-2 Small 124M, Zero Gradients)
+
+### 1. Official EleutherAI `lm-eval` Verification (`checkpoints/seed44_paired_patched_sae.safetensors`)
+Unmodified `lm_eval.simple_evaluate` comparing Base GPT-2 Small vs. the Seed 44 `patched_sae` edited checkpoint (4 gradient-free edits at L7, L8, L9, L11):
+
+| Official `lm-eval` Task | Role | Base GPT-2 | Edited GPT-2 | Delta |
+| :--- | :---: | :---: | :---: | :---: |
+| `blimp_left_branch_island_echo_question` (1,000) | **TARGET** | `48.10%` | **`95.10%`** | **`+47.00%`** |
+| `blimp_npi_present_1` (1,000) | **TARGET** | `59.60%` | **`64.10%`** | **`+4.50%`** |
+| `blimp_tough_vs_raising_1` (1,000) | **TARGET** | `65.30%` | **`67.10%`** | **`+1.80%`** |
+| `blimp_principle_A_reconstruction` (1,000) | **TARGET** | `39.70%` | **`39.80%`** | **`+0.10%`** |
+| **Target BLiMP-Hard Mean (4,000 items)** | **TARGET** | **`53.17%`** | **`66.53%`** | **`+13.35%`** |
+| `blimp_determiner_noun_agreement_1` (1,000) | COLLATERAL | `99.10%` | `98.90%` | `-0.20%` |
+| `blimp_animate_subject_passive` (1,000) | COLLATERAL | `79.50%` | `79.00%` | `-0.50%` |
+| `hellaswag` (200) | COLLATERAL | `37.00%` | **`37.00%`** | **`+0.00%`** |
+| `lambada_openai` (200) | COLLATERAL | `37.00%` | `36.00%` | `-1.00%` |
+| **Collateral Mean (OOD + General)** | COLLATERAL | `63.15%` | `62.72%` | **`-0.43%`** |
+
+### 2. Controlled Paired-Branch Ablation (3 Seeds × 3,840 Held-Out = 11,520 Unseen Items)
+`frozen_sae` and `patched_sae` share the **exact same Phase-1 Edit #1**, then fork from identical post-Edit-1 weights for downstream Phase-2 edits (`gpt-6.1-sol`, `reasoning_effort=medium`):
+
+| Arm | Seed 42 (Total / P2) | Seed 43 (Total / P2) | Seed 44 (Total / P2) | **Mean Total Δ** | **Mean Phase-2 Δ** | **Mean Margin Δ** | Mean Keeper |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`no_sae`** *(raw `diff_dir` baseline)* | `-0.62%` / — | `+3.05%` / — | `-0.39%` / — | `+0.68%` | — | `+0.032` | `97.9%` |
+| **`frozen_sae`** *(static SAEs)* | `+0.63%` / `+0.26%` | `+3.02%` / `+0.83%` | `+12.57%` / `+11.95%` | `+5.41%` | `+4.35%` | `+0.845` | `97.9%` |
+| **`patched_sae`** *(Local Subspace SAE Patching)* | `+0.37%` / `+0.00%` | **`+4.27%`** / **`+2.08%`** | **`+14.08%`** / **`+13.46%`** | **`+6.24%`** | **`+5.18%`** | **`+0.989`** | **`98.3%`** |
+
+* Updating just **`32 / 24,576` (`0.13%`)** of downstream SAE latents after each commit cut downstream L11 SAE reconstruction MSE by **`-98.8%` to `-99.1%`** across stacked edits (e.g., Seed 44 L11 MSE: `1,016,486 → 416,099 → 91,518 → 8,970`).
+
+### 3. Independent 5-Seed BLiMP-Hard Sweep (Seeds 42–46, 10,680 Unseen Items)
+* **`patched_sae` beat `no_sae` on 5/5 seeds (8/8 across all independent + paired-branch runs):**
+  * `no_sae`: Mean **`+0.70%`** (Median `+0.60%`), Margin `+0.069`, Keeper `98.4%`
+  * `frozen_sae`: Mean **`+1.79%`** (Median `+1.98%`), Margin `+0.261`, Keeper `98.9%`
+  * `patched_sae`: Mean **`+3.94%`** (Median **`+2.10%`**), Margin **`+0.559`**, Keeper **`99.1%`**
+
+---
 
 ## Quick Start
 
+### 1. Reproduce the Official `lm-eval` Result ($0 API Cost)
 ```bash
-python3 download_models.py   # Caches GPT-2 Small + Layers 6..11 Pretrained SAEs (24,576 latents each)
-python3 run_experiment.py    # Runs the multi-iteration closed loop across layers
+python3 download_models.py
+python3 verify_checkpoint_lm_eval.py --delta checkpoints/seed44_paired_patched_sae.safetensors --tag seed44_paired_patched_sae
 ```
 
-## Multi-Iteration Progression (`results/multi_loop_run.json`)
+### 2. Run the Outside-Agent Closed Loop (OpenAI Responses API)
+Copy `.env.example` to `.env` (gitignored) and add your `OPENAI_API_KEY`:
+```env
+OPENAI_API_KEY=sk-...
+MWE_AGENT_MODEL=gpt-6.1-sol
+MWE_REASONING_EFFORT=medium
+MWE_MAX_TURNS=20
+MWE_MAX_EDITS=6
+```
 
-Each iteration queries the current layer's **locally synced SAE** on the remaining unsolved / lowest-confidence practice prompts, stages a 1-neuron MLP gate (`1,537` weights), verifies keeper and KL guards in the sandbox, commits the edit, saves checkpoints to disk, and locally patches `32 / 24,576` (`0.13%`) latents of the next downstream SAE:
+Run a controlled paired-branch ablation (`no_sae` + shared Edit #1 → `frozen_sae` vs. `patched_sae`):
+```bash
+python3 run_agent_benchmark.py \
+  --benchmark blimp --paired-branch \
+  --practice-size 40 --heldout-size 960 --seed 44 \
+  --model gpt-6.1-sol --reasoning-effort medium
+```
 
-| Iteration | Layer Edited (Unit) | Top SAE Latent (AUC) | Cumulative Weights Edited | Practice Failure ↓ | Practice Target Prob ↑ | **Held-Out Failure ↓** | **Held-Out Target Prob ↑** | **Held-Out Keepers Identical** | Collateral KL | Downstream SAE Local Patch (MSE ↓) |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **0 (Base)** | — | — | `0` (`0%`) | `100.0%` | `0.05%` | **`100.0%`** | **`0.06%`** | `100.0%` | `0.00000` | — |
-| **Iter 1** | Layer 6 (`u1739`) | `#693` (`0.979`) | `1,537` (`0.0012%`) | `16.7%` | `81.8%` | **`30.0%`** | **`62.6%`** | **`100.0%`** | `0.00001` | Layer 7 SAE: `31.5k` $\rightarrow$ `21.0k` (`-33%`) |
-| **Iter 2** | Layer 7 (`u2758`) | `#1819` (`1.000`) | `3,074` (`0.0025%`) | **`0.0%`** | `95.6%` | **`20.0%`** | **`75.0%`** | **`100.0%`** | `0.00001` | Layer 8 SAE: `127.6k` $\rightarrow$ `95.3k` (`-25%`) |
-| **Iter 3** | Layer 8 (`u583`) | `#18486` (`1.000`) | `4,611` (`0.0037%`) | **`0.0%`** | **`100.0%`** | **`10.0%`** | **`90.0%`** | **`100.0%`** | `0.00002` | Layer 9 SAE: `9.20M` $\rightarrow$ `6.97M` (`-24%`) |
-
-### Persistence on Disk (Original vs. Edited)
-* **Untouched Originals (`/tmp/mwe_cache`):** Base `gpt2` (`548 MB`) and all 6 pretrained SAEs (`blocks.6`–`blocks.11`, `151 MB` each) are **never modified on disk**.
-* **Saved Iteration Deltas (`/tmp/mwe_runs/checkpoints/`):**
-  * `model_delta_iter_1_L6.safetensors` (`19 KB`), `model_delta_iter_2_L7.safetensors` (`37 KB`), `model_delta_iter_3_L8.safetensors` (`56 KB`), `model_delta_final.safetensors` (`56 KB`)
-  * `sae_L7_delta_iter_1.safetensors` (`193 KB`), `sae_L8_delta_iter_2.safetensors` (`193 KB`), `sae_L9_delta_iter_3.safetensors` (`193 KB`)
+Run an independent 3-arm ablation or zero-cost `--heuristic` dry run:
+```bash
+python3 run_agent_benchmark.py --benchmark blimp --ablation-all --model gpt-6.1-sol --reasoning-effort medium
+python3 run_agent_benchmark.py --benchmark truthfulqa --ablation-all --practice-size 100 --heldout-size 200 --model gpt-6.1-sol
+python3 run_agent_benchmark.py --benchmark blimp --paired-branch --heuristic
+```

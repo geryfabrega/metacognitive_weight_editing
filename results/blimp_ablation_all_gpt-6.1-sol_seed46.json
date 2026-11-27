@@ -1,0 +1,555 @@
+{
+  "no_sae": {
+    "arm": "no_sae",
+    "benchmark": "blimp",
+    "benchmark_meta": {
+      "dataset": "nyu-mll/blimp",
+      "subsets": [
+        "left_branch_island_echo_question",
+        "principle_A_reconstruction",
+        "npi_present_1",
+        "tough_vs_raising_1"
+      ],
+      "keeper_subsets": [
+        "determiner_noun_agreement_1",
+        "animate_subject_passive"
+      ],
+      "seed": 46,
+      "practice_n": 160,
+      "heldout_n": 3840,
+      "keeper_n": 80
+    },
+    "edits_committed": 2,
+    "committed_history": [
+      {
+        "edit_num": 1,
+        "layer": 8,
+        "edit_type": "rank1_projection",
+        "description": "L8.mlp raw diff_dir projection (alpha=+0.600)",
+        "rationale": "L8 MLP projection with positive scale improves principle-A and tough/raising practice accuracy, raises aggregate mean margin by 0.0668, and preserves all keepers with KL 0.000267. Suppression and neuron gates did not yield comparable gains.",
+        "tensors_edited": [
+          "transformer.h.8.mlp.c_proj.weight",
+          "transformer.h.8.mlp.c_proj.bias"
+        ],
+        "entries_changed": 2360064,
+        "effective_dof": 3840,
+        "cumulative_entries_changed": 2360064,
+        "l2_norm": 7.1532
+      },
+      {
+        "edit_num": 2,
+        "layer": 9,
+        "edit_type": "rank1_projection",
+        "description": "L9.mlp raw diff_dir projection (alpha=+0.600)",
+        "rationale": "Complementary L9 MLP edit improves the targeted echo-question subset from 30% to 32.5%, increases mean margin by 0.0652 without subset regressions, and maintains full keeper retention at cumulative KL 0.000765.",
+        "tensors_edited": [
+          "transformer.h.9.mlp.c_proj.weight",
+          "transformer.h.9.mlp.c_proj.bias"
+        ],
+        "entries_changed": 2360064,
+        "effective_dof": 3840,
+        "cumulative_entries_changed": 4720128,
+        "l2_norm": 9.1748
+      }
+    ],
+    "sae_patch_logs": [],
+    "base_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.5188,
+      "blimp_acc": 0.5188,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3,
+        "principle_A_reconstruction": 0.525,
+        "npi_present_1": 0.675,
+        "tough_vs_raising_1": 0.575
+      },
+      "mean_margin": -0.0171,
+      "num_items": 160,
+      "num_failing": 77,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.5375,
+      "blimp_acc": 0.5375,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.325,
+        "principle_A_reconstruction": 0.55,
+        "npi_present_1": 0.675,
+        "tough_vs_raising_1": 0.6
+      },
+      "mean_margin": 0.1149,
+      "num_items": 160,
+      "num_failing": 74,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 48.2122,
+      "wikitext2_kl": 0.000765
+    },
+    "base_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4807,
+      "blimp_acc": 0.4807,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3073,
+        "principle_A_reconstruction": 0.4125,
+        "npi_present_1": 0.5698,
+        "tough_vs_raising_1": 0.6333
+      },
+      "mean_margin": -0.2663,
+      "num_items": 3840,
+      "num_failing": 1994,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4922,
+      "blimp_acc": 0.4922,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3281,
+        "principle_A_reconstruction": 0.4219,
+        "npi_present_1": 0.5677,
+        "tough_vs_raising_1": 0.651
+      },
+      "mean_margin": -0.1453,
+      "num_items": 3840,
+      "num_failing": 1950,
+      "keeper_retention": 0.9957,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 48.2122,
+      "wikitext2_kl": 0.000765
+    },
+    "heldout_primary_delta": 0.0115,
+    "heldout_margin_delta": 0.121,
+    "finish_summary": "Committed two raw rank-1 MLP projections without SAEs or gradient training: L8 alpha=+0.6 targeting principle_A_reconstruction and L9 alpha=+0.6 targeting left_branch_island_echo_question. Practice BLiMP accuracy improved 0.5188 -> 0.5375 (three additional correct pairs), mean margin -0.0171 -> 0.1149, keeper retention remains 1.0, WikiText-2 KL 0.000765 and PPL 48.2122 versus baseline 48.1774. Tested both projection and dormant neuron gates; suppression/gates were unhelpful. Final L10 trials offered no aggregate accuracy gain or regressed and remain uncommitted. Stopping at diminishing returns rather than stacking noisy edits; proceed to held-out evaluation using only the two committed edits.",
+    "agent_model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "api_usage": {
+      "input_tokens": 90196,
+      "cached_input_tokens": 83023,
+      "output_tokens": 1293,
+      "reasoning_tokens": 99,
+      "total_tokens": 91489,
+      "turns": 19
+    },
+    "tool_trace_len": 19,
+    "elapsed_sec": 148.38
+  },
+  "frozen_sae": {
+    "arm": "frozen_sae",
+    "benchmark": "blimp",
+    "benchmark_meta": {
+      "dataset": "nyu-mll/blimp",
+      "subsets": [
+        "left_branch_island_echo_question",
+        "principle_A_reconstruction",
+        "npi_present_1",
+        "tough_vs_raising_1"
+      ],
+      "keeper_subsets": [
+        "determiner_noun_agreement_1",
+        "animate_subject_passive"
+      ],
+      "seed": 46,
+      "practice_n": 160,
+      "heldout_n": 3840,
+      "keeper_n": 80
+    },
+    "edits_committed": 4,
+    "committed_history": [
+      {
+        "edit_num": 1,
+        "layer": 7,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L7 dormant MLP gate read=[15444, 11434] write=-1*[15444] (gain=6.00)",
+        "rationale": "Question-feature gated suppression improves left-branch echo-question accuracy by 5 points with negligible KL and full keeper retention.",
+        "tensors_edited": [
+          "transformer.h.7.mlp.c_fc.weight",
+          "transformer.h.7.mlp.c_fc.bias",
+          "transformer.h.7.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 1537,
+        "l2_norm": 13.0359
+      },
+      {
+        "edit_num": 2,
+        "layer": 9,
+        "edit_type": "rank1_projection",
+        "description": "L9.mlp SAE proj #16914 (alpha=+0.800)",
+        "rationale": "Amplifying a personal-pronoun/action feature provides a small complementary tough-versus-raising gain without regressions, full keeper retention and KL 0.000351.",
+        "tensors_edited": [
+          "transformer.h.9.mlp.c_proj.weight",
+          "transformer.h.9.mlp.c_proj.bias"
+        ],
+        "entries_changed": 2360064,
+        "effective_dof": 3840,
+        "cumulative_entries_changed": 2361601,
+        "l2_norm": 8.1332
+      },
+      {
+        "edit_num": 3,
+        "layer": 10,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L10 dormant MLP gate read=[23349, 14633] write=-1*[23349] (gain=10.00)",
+        "rationale": "Downstream question/action gate raises echo-question accuracy to 40%, improving overall accuracy and margins with KL 0.000427 and no keeper loss.",
+        "tensors_edited": [
+          "transformer.h.10.mlp.c_fc.weight",
+          "transformer.h.10.mlp.c_fc.bias",
+          "transformer.h.10.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 2363138,
+        "l2_norm": 15.4294
+      },
+      {
+        "edit_num": 4,
+        "layer": 11,
+        "edit_type": "rank1_projection",
+        "description": "L11.mlp SAE proj #19203 (alpha=+0.800)",
+        "rationale": "Amplifying the downstream personal-pronoun feature improves reconstruction accuracy by 2.5 points without subset regressions or keeper loss; cumulative KL remains 0.000671.",
+        "tensors_edited": [
+          "transformer.h.11.mlp.c_proj.weight",
+          "transformer.h.11.mlp.c_proj.bias"
+        ],
+        "entries_changed": 2360064,
+        "effective_dof": 3840,
+        "cumulative_entries_changed": 4723202,
+        "l2_norm": 9.0522
+      }
+    ],
+    "sae_patch_logs": [],
+    "base_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.5188,
+      "blimp_acc": 0.5188,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3,
+        "principle_A_reconstruction": 0.525,
+        "npi_present_1": 0.675,
+        "tough_vs_raising_1": 0.575
+      },
+      "mean_margin": -0.0171,
+      "num_items": 160,
+      "num_failing": 77,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.55,
+      "blimp_acc": 0.55,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.4,
+        "principle_A_reconstruction": 0.55,
+        "npi_present_1": 0.675,
+        "tough_vs_raising_1": 0.575
+      },
+      "mean_margin": 0.3798,
+      "num_items": 160,
+      "num_failing": 72,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 48.2327,
+      "wikitext2_kl": 0.000671
+    },
+    "base_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4807,
+      "blimp_acc": 0.4807,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3073,
+        "principle_A_reconstruction": 0.4125,
+        "npi_present_1": 0.5698,
+        "tough_vs_raising_1": 0.6333
+      },
+      "mean_margin": -0.2663,
+      "num_items": 3840,
+      "num_failing": 1994,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.5005,
+      "blimp_acc": 0.5005,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3698,
+        "principle_A_reconstruction": 0.425,
+        "npi_present_1": 0.574,
+        "tough_vs_raising_1": 0.6333
+      },
+      "mean_margin": 0.0032,
+      "num_items": 3840,
+      "num_failing": 1918,
+      "keeper_retention": 0.9892,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 48.2327,
+      "wikitext2_kl": 0.000671
+    },
+    "heldout_primary_delta": 0.0198,
+    "heldout_margin_delta": 0.2695,
+    "finish_summary": "Committed four frozen-SAE weight edits: L7 question-feature suppression gate, L9 personal-pronoun amplification projection, L10 residual question/action suppression gate, and L11 pronoun amplification projection. Practice BLiMP improved from 0.5188 to 0.5500; echo questions 0.30 to 0.40, reconstruction 0.525 to 0.55, other subsets unchanged from baseline. Mean margin improved -0.0171 to 0.3798. Cumulative WikiText-2 KL 0.000671, keeper retention 1.0, perplexity 48.2327 versus baseline 48.1774. Final tough-feature amplification candidate was rejected and not committed. Stopping with four clean edits rather than forcing remaining budget; held-out generalization remains to be evaluated.",
+    "agent_model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "api_usage": {
+      "input_tokens": 140778,
+      "cached_input_tokens": 129581,
+      "output_tokens": 1055,
+      "reasoning_tokens": 91,
+      "total_tokens": 141833,
+      "turns": 19
+    },
+    "tool_trace_len": 19,
+    "elapsed_sec": 143.78
+  },
+  "patched_sae": {
+    "arm": "patched_sae",
+    "benchmark": "blimp",
+    "benchmark_meta": {
+      "dataset": "nyu-mll/blimp",
+      "subsets": [
+        "left_branch_island_echo_question",
+        "principle_A_reconstruction",
+        "npi_present_1",
+        "tough_vs_raising_1"
+      ],
+      "keeper_subsets": [
+        "determiner_noun_agreement_1",
+        "animate_subject_passive"
+      ],
+      "seed": 46,
+      "practice_n": 160,
+      "heldout_n": 3840,
+      "keeper_n": 80
+    },
+    "edits_committed": 3,
+    "committed_history": [
+      {
+        "edit_num": 1,
+        "layer": 7,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L7 dormant MLP gate read=[15444, 11434] write=-1*[15444] (gain=6.00)",
+        "rationale": "A sparse layer-7 question-feature suppression gate improves the weakest echo-question subset from 30% to 35%, with full keeper retention and negligible WikiText KL.",
+        "tensors_edited": [
+          "transformer.h.7.mlp.c_fc.weight",
+          "transformer.h.7.mlp.c_fc.bias",
+          "transformer.h.7.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 1537,
+        "l2_norm": 13.0359
+      },
+      {
+        "edit_num": 2,
+        "layer": 9,
+        "edit_type": "rank1_projection",
+        "description": "L9.mlp SAE proj #16914 (alpha=+0.600)",
+        "rationale": "Amplifying a pronoun/action feature at layer 9 yields a small complementary gain on tough-versus-raising pairs without reducing any subset accuracy or keeper retention; cumulative KL remains very low.",
+        "tensors_edited": [
+          "transformer.h.9.mlp.c_proj.weight",
+          "transformer.h.9.mlp.c_proj.bias"
+        ],
+        "entries_changed": 2360064,
+        "effective_dof": 3840,
+        "cumulative_entries_changed": 2361601,
+        "l2_norm": 6.0998
+      },
+      {
+        "edit_num": 3,
+        "layer": 11,
+        "edit_type": "rank1_projection",
+        "description": "L11.attn SAE proj #6936 (alpha=-0.500)",
+        "rationale": "Layer-11 attention suppression of the prepositional-phrase feature yields six additional correct echo-question pairs with no subset losses and full keeper retention. Cumulative WikiText KL 0.032207 remains below 0.05.",
+        "tensors_edited": [
+          "transformer.h.11.attn.c_proj.weight",
+          "transformer.h.11.attn.c_proj.bias"
+        ],
+        "entries_changed": 590592,
+        "effective_dof": 1536,
+        "cumulative_entries_changed": 2952193,
+        "l2_norm": 10.8317
+      }
+    ],
+    "sae_patch_logs": [
+      {
+        "edit_num": 1,
+        "edited_layer": 7,
+        "downstream_layer": 8,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 896724.8125,
+        "mse_after": 414755.53125
+      },
+      {
+        "edit_num": 1,
+        "edited_layer": 7,
+        "downstream_layer": 9,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 795124.8125,
+        "mse_after": 271142.4375
+      },
+      {
+        "edit_num": 1,
+        "edited_layer": 7,
+        "downstream_layer": 10,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 633806.6875,
+        "mse_after": 304803.03125
+      },
+      {
+        "edit_num": 1,
+        "edited_layer": 7,
+        "downstream_layer": 11,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 1106368.75,
+        "mse_after": 469506.65625
+      },
+      {
+        "edit_num": 2,
+        "edited_layer": 9,
+        "downstream_layer": 10,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 309906.90625,
+        "mse_after": 82370.101562
+      },
+      {
+        "edit_num": 2,
+        "edited_layer": 9,
+        "downstream_layer": 11,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 475010.53125,
+        "mse_after": 78294.703125
+      }
+    ],
+    "base_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.5188,
+      "blimp_acc": 0.5188,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3,
+        "principle_A_reconstruction": 0.525,
+        "npi_present_1": 0.675,
+        "tough_vs_raising_1": 0.575
+      },
+      "mean_margin": -0.0171,
+      "num_items": 160,
+      "num_failing": 77,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.575,
+      "blimp_acc": 0.575,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.5,
+        "principle_A_reconstruction": 0.525,
+        "npi_present_1": 0.675,
+        "tough_vs_raising_1": 0.6
+      },
+      "mean_margin": 0.4937,
+      "num_items": 160,
+      "num_failing": 68,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 49.5897,
+      "wikitext2_kl": 0.032207
+    },
+    "base_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4807,
+      "blimp_acc": 0.4807,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3073,
+        "principle_A_reconstruction": 0.4125,
+        "npi_present_1": 0.5698,
+        "tough_vs_raising_1": 0.6333
+      },
+      "mean_margin": -0.2663,
+      "num_items": 3840,
+      "num_failing": 1994,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.5174,
+      "blimp_acc": 0.5174,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.4333,
+        "principle_A_reconstruction": 0.424,
+        "npi_present_1": 0.576,
+        "tough_vs_raising_1": 0.6365
+      },
+      "mean_margin": 0.2009,
+      "num_items": 3840,
+      "num_failing": 1853,
+      "keeper_retention": 0.9957,
+      "ood_keeper_blimp_acc": 0.9375,
+      "wikitext2_ppl": 49.5897,
+      "wikitext2_kl": 0.032207
+    },
+    "heldout_primary_delta": 0.0367,
+    "heldout_margin_delta": 0.4672,
+    "finish_summary": "Committed three gradient-free edits: L7 sparse question-feature suppression gate (gain 6), L9 MLP pronoun/action-feature amplification (alpha +0.6), and L11 attention prepositional-phrase-feature suppression (alpha -0.5). Tried both projection and dormant-neuron operators; discarded candidates without accuracy gains. Practice accuracy improved 0.5188 to 0.575, echo-question subset 0.30 to 0.50, tough-vs-raising 0.575 to 0.60, other subsets unchanged. Final keeper retention 1.0, WikiText-2 KL 0.032207 <= 0.05, perplexity 49.5897 versus baseline 48.1774. Stopping after three clean edits to preserve fluency headroom and avoid chasing practice noise; held-out performance remains to be evaluated.",
+    "agent_model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "api_usage": {
+      "input_tokens": 121084,
+      "cached_input_tokens": 110296,
+      "output_tokens": 1250,
+      "reasoning_tokens": 132,
+      "total_tokens": 122334,
+      "turns": 17
+    },
+    "tool_trace_len": 17,
+    "elapsed_sec": 219.27
+  }
+}

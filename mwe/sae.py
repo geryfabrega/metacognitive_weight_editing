@@ -1,10 +1,11 @@
-"""Pretrained SAE loader, feature localizer, and local dictionary patcher."""
+"""Pretrained SAE loader, feature localizer, Neuronpedia label fetcher, and local dictionary patcher."""
 
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import json
 import torch
+
 if ".dev" in torch.__version__:
     torch.__version__ = torch.__version__.split(".dev")[0]
 import torch.nn as nn
@@ -22,12 +23,74 @@ class FeatureHit:
     diff: float
     fire_rate_pos: float
     fire_rate_neg: float
+    label: str = ""
+
+
+def fetch_neuronpedia_labels(
+    layer: int,
+    latent_indices: List[int],
+    cache_dir: Optional[Path] = None,
+    timeout: float = 2.5,
+) -> Dict[int, str]:
+    """
+    Fetch and locally cache human-readable auto-interp descriptions for `jbloom/GPT2-Small-SAEs-Reformatted`
+    from Neuronpedia (`gpt2-small` / `{layer}-res-jb`). Fails gracefully offline.
+    """
+    cdir = Path(cache_dir or CACHE_DIR)
+    cdir.mkdir(parents=True, exist_ok=True)
+    cache_path = cdir / f"neuronpedia_gpt2_L{layer}.json"
+
+    cached: Dict[str, str] = {}
+    if cache_path.exists():
+        try:
+            cached = json.loads(cache_path.read_text())
+        except Exception:
+            cached = {}
+
+    out: Dict[int, str] = {}
+    missing = [idx for idx in latent_indices if str(idx) not in cached]
+
+    if missing:
+        try:
+            import requests
+            changed = False
+            for idx in missing:
+                url = f"https://www.neuronpedia.org/api/feature/gpt2-small/{layer}-res-jb/{idx}"
+                try:
+                    resp = requests.get(url, timeout=timeout)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        exps = data.get("explanations") or []
+                        desc = exps[0].get("description", "").strip() if exps else ""
+                        cached[str(idx)] = desc or "(no auto-interp label)"
+                        changed = True
+                    else:
+                        cached[str(idx)] = "(label unavailable)"
+                except Exception:
+                    # Stop trying network on first timeout/offline error so loop stays fast
+                    break
+            if changed:
+                cache_path.write_text(json.dumps(cached, indent=2))
+        except Exception:
+            pass
+
+    for idx in latent_indices:
+        out[idx] = cached.get(str(idx), "")
+    return out
 
 
 class SparseAutoencoder(nn.Module):
     """Pretrained Sparse Autoencoder with support for local subspace-masked patching."""
 
-    def __init__(self, W_enc: torch.Tensor, b_enc: torch.Tensor, W_dec: torch.Tensor, b_dec: torch.Tensor, hook_point: str = ""):
+    def __init__(
+        self,
+        W_enc: torch.Tensor,
+        b_enc: torch.Tensor,
+        W_dec: torch.Tensor,
+        b_dec: torch.Tensor,
+        hook_point: str = "",
+        layer: int = -1,
+    ):
         super().__init__()
         # Convention (sae-lens / GPT2-Small-SAEs):
         # W_enc: [d_in, d_sae], b_enc: [d_sae], W_dec: [d_sae, d_in], b_dec: [d_in]
@@ -37,6 +100,7 @@ class SparseAutoencoder(nn.Module):
             W_dec = W_dec.T.contiguous()
         self.d_in, self.d_sae = W_enc.shape
         self.hook_point = hook_point
+        self.layer = layer
 
         self.W_enc = nn.Parameter(W_enc.float().clone())
         self.b_enc = nn.Parameter(b_enc.float().clone())
@@ -45,19 +109,38 @@ class SparseAutoencoder(nn.Module):
 
     @classmethod
     def from_pretrained_gpt2(cls, layer: int = 6, cache_dir: Optional[Path] = None) -> "SparseAutoencoder":
-        """Download a pretrained GPT-2 Small residual-stream SAE from jbloom/GPT2-Small-SAEs-Reformatted."""
+        """Load a pretrained GPT-2 Small residual-stream SAE from jbloom/GPT2-Small-SAEs-Reformatted."""
         from huggingface_hub import hf_hub_download
         from safetensors.torch import load_file
 
         cdir = Path(cache_dir or CACHE_DIR)
         cdir.mkdir(parents=True, exist_ok=True)
         hook = f"blocks.{layer}.hook_resid_pre"
-        weights_path = hf_hub_download(
-            repo_id="jbloom/GPT2-Small-SAEs-Reformatted",
-            filename=f"{hook}/sae_weights.safetensors",
-            cache_dir=str(cdir),
-            local_files_only=True,
-        )
+
+        # Fast path: resolve directly from local HF snapshot directory if cached
+        weights_path = None
+        snap_root = cdir / "models--jbloom--GPT2-Small-SAEs-Reformatted" / "snapshots"
+        if snap_root.exists():
+            for snap in sorted(snap_root.iterdir()):
+                cand = snap / hook / "sae_weights.safetensors"
+                if cand.exists():
+                    weights_path = str(cand)
+                    break
+
+        if weights_path is None:
+            try:
+                weights_path = hf_hub_download(
+                    repo_id="jbloom/GPT2-Small-SAEs-Reformatted",
+                    filename=f"{hook}/sae_weights.safetensors",
+                    cache_dir=str(cdir),
+                    local_files_only=True,
+                )
+            except Exception:
+                weights_path = hf_hub_download(
+                    repo_id="jbloom/GPT2-Small-SAEs-Reformatted",
+                    filename=f"{hook}/sae_weights.safetensors",
+                    cache_dir=str(cdir),
+                )
         tensors = load_file(weights_path)
         return cls(
             W_enc=tensors["W_enc"],
@@ -65,6 +148,7 @@ class SparseAutoencoder(nn.Module):
             W_dec=tensors["W_dec"],
             b_dec=tensors["b_dec"],
             hook_point=hook,
+            layer=layer,
         )
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
@@ -98,8 +182,19 @@ class SparseAutoencoder(nn.Module):
         }
 
     @torch.no_grad()
-    def localize_features(self, pos_acts: torch.Tensor, neg_acts: torch.Tensor, top_k: int = 8) -> List[FeatureHit]:
-        """Find the SAE latents that best separate failure activations (pos_acts) from keeper activations (neg_acts)."""
+    def localize_features(
+        self,
+        pos_acts: torch.Tensor,
+        neg_acts: torch.Tensor,
+        top_k: int = 8,
+        fetch_labels: bool = False,
+        cache_dir: Optional[Path] = None,
+    ) -> List[FeatureHit]:
+        """
+        Find the SAE latents that best separate failure/bad span activations (`pos_acts`)
+        from desired/good span activations (`neg_acts`).
+        Returns both positive-diff (fires more on failures/myths) and negative-diff (fires more on truthful/good) features.
+        """
         z_pos = self.encode(pos_acts)  # [N_pos, d_sae]
         z_neg = self.encode(neg_acts)  # [N_neg, d_sae]
 
@@ -107,13 +202,12 @@ class SparseAutoencoder(nn.Module):
         neg_mean = z_neg.mean(dim=0)
         diff = pos_mean - neg_mean
 
-        # Pre-screen top 256 candidates by mean activation difference for fast exact AUC
+        # Pre-screen top 256 candidates by mean activation difference for fast exact ROC-AUC
         cand_indices = torch.argsort(diff.abs(), descending=True)[:256].tolist()
         hits: List[FeatureHit] = []
         for idx in cand_indices:
             p = z_pos[:, idx]
             n = z_neg[:, idx]
-            # Pairwise Mann-Whitney U / ROC-AUC
             comp = (p[:, None] > n[None, :]).float() + 0.5 * (p[:, None] == n[None, :]).float()
             auc = comp.mean().item()
             hits.append(
@@ -128,7 +222,18 @@ class SparseAutoencoder(nn.Module):
                 )
             )
         hits.sort(key=lambda h: (abs(h.auc - 0.5), abs(h.diff)), reverse=True)
-        return hits[:top_k]
+        top_hits = hits[:top_k]
+
+        if fetch_labels and self.layer >= 0:
+            labels = fetch_neuronpedia_labels(
+                layer=self.layer,
+                latent_indices=[h.latent_idx for h in top_hits],
+                cache_dir=cache_dir,
+            )
+            for h in top_hits:
+                h.label = labels.get(h.latent_idx, "")
+
+        return top_hits
 
     def local_subspace_patch(
         self,
@@ -150,30 +255,29 @@ class SparseAutoencoder(nn.Module):
             z_post = self.encode(post_edit_acts)
             act_shift = (z_post - z_pre).abs().mean(dim=0)
 
-            # 1. Subspace overlap with the weight edit's write vectors [k, d_in]
             wv = write_vectors.float()
             if wv.dim() == 1:
                 wv = wv.unsqueeze(0)
             wv_norm = F.normalize(wv, dim=-1)
             enc_norm = F.normalize(self.W_enc.T, dim=-1)  # [d_sae, d_in]
             dec_norm = F.normalize(self.W_dec, dim=-1)    # [d_sae, d_in]
-            subspace_score = (enc_norm @ wv_norm.T).abs().max(dim=-1).values + (dec_norm @ wv_norm.T).abs().max(dim=-1).values
+            subspace_score = (
+                (enc_norm @ wv_norm.T).abs().max(dim=-1).values
+                + (dec_norm @ wv_norm.T).abs().max(dim=-1).values
+            )
 
-            # 2. Reconstruction residual alignment on post-edit activations
             x_hat_init, _ = self.forward(post_edit_acts.float())
-            residual = post_edit_acts.float() - x_hat_init  # [N, d_in]
+            residual = post_edit_acts.float() - x_hat_init
             mean_res_dir = F.normalize(residual.mean(dim=0, keepdim=True), dim=-1)
             res_score = (dec_norm @ mean_res_dir.T).abs().squeeze(-1)
 
             combined = subspace_score + 0.5 * act_shift / (act_shift.max() + 1e-8) + res_score
             selected = torch.argsort(combined, descending=True)[:max_latents].sort().values
 
-            # Extract ONLY the selected subset of columns/rows for optimization
-            sub_W_enc = self.W_enc[:, selected].clone().detach().requires_grad_(True)  # [d_in, k]
-            sub_b_enc = self.b_enc[selected].clone().detach().requires_grad_(True)     # [k]
-            sub_W_dec = self.W_dec[selected, :].clone().detach().requires_grad_(True)  # [k, d_in]
+            sub_W_enc = self.W_enc[:, selected].clone().detach().requires_grad_(True)
+            sub_b_enc = self.b_enc[selected].clone().detach().requires_grad_(True)
+            sub_W_dec = self.W_dec[selected, :].clone().detach().requires_grad_(True)
 
-            # Precompute the frozen contribution of the other 99.8%+ latents!
             frozen_mask = torch.ones(self.d_sae, dtype=torch.bool, device=self.W_enc.device)
             frozen_mask[selected] = False
             x_centered = post_edit_acts.float() - self.b_dec
@@ -193,7 +297,6 @@ class SparseAutoencoder(nn.Module):
             loss.backward()
             opt.step()
             with torch.no_grad():
-                # Keep decoder rows unit-normed as in standard SAE training
                 sub_W_dec.data = F.normalize(sub_W_dec.data, dim=-1)
 
         with torch.no_grad():
@@ -211,14 +314,15 @@ class SparseAutoencoder(nn.Module):
             "patched_latents_count": int(selected.numel()),
             "patched_fraction_pct": round(100.0 * selected.numel() / self.d_sae, 4),
             "patched_latent_indices": selected.tolist()[:12],
-            "post_edit_Before_SAE_patch": before_metrics,
-            "post_edit_After_SAE_patch": after_metrics,
+            "post_edit_before_sae_patch": before_metrics,
+            "post_edit_after_sae_patch": after_metrics,
             "pre_edit_distribution_retention": keeper_metrics,
         }
 
     def save_patch_delta(self, path: Path) -> None:
         """Save only the locally patched SAE latents to disk as safetensors (leaving base SAE untouched)."""
         from safetensors.torch import save_file
+
         idx = getattr(self, "_last_patched_indices", torch.tensor([], dtype=torch.long))
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         save_file(

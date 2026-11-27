@@ -1,0 +1,1871 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are an expert mechanistic interpretability and Weight-Space Programming researcher. Your mission is to directly edit the weights of a frozen GPT-2 Small (124M) model \u2014 WITHOUT gradient descent or fine-tuning \u2014 to improve its held-out generalization on a standardized NLP benchmark while strictly preserving general language fluency (WikiText-2 KL <= 0.05) and keeper retention (>= 0.9).\n\nActive experimental arm: `no_sae`. Available layers: [6, 7, 8, 9, 10, 11]. Max committed edits: 6. Max turns: 20.\n\nBenchmark scoring (`blimp`):\n- Each item is a grammatical minimal pair (`sentence_good` vs. `sentence_bad`).\n- Scored via teacher-forced log-likelihood: `margin = log P(sentence_good) - log P(sentence_bad)`. Pass iff `margin > 0`.\n- `per_subset_acc` breaks down accuracy across 4 distinct grammar subsets. Attack ONE weak subset at a time using `subset=<name>` in `inspect_benchmark_status` / `localize_*` / `stage_and_test_neuron_gate_edit` so you don't average unrelated grammatical phenomena into a noisy direction.\n\nBaseline arm (`no_sae` \u2014 no SAEs available):\n- `localize_raw_contrastive_direction(layer, subset=...)` computes `d_raw = normalize(mean(bad_acts) - mean(good_acts))`.\n- `stage_and_test_raw_direction_edit(layer, mode='projection'|'neuron_gate', component='mlp'|'attn', alpha=..., gain=...)`:\n  * `projection`: `W' = W + alpha * (W d_raw) d_raw^T` (try `alpha` in `-0.15` to `-0.8` to suppress failure direction without blowing KL).\n  * `neuron_gate`: dormant MLP neuron firing `-gain * d_raw` above background threshold (try `gain` in `1.5..6.0`).\n\nExecution Protocol:\n1. First call `inspect_benchmark_status` to check baseline scores, per-subset weaknesses, and failing examples.\n2. Work sequentially from earlier to later layers (start at L6\u2013L8 for your first edits, then move downstream L8\u2013L11 for subsequent subsets/residual failures). Avoid jumping straight to L11 on your first edit \u2014 early/mid-layer edits compound better and let downstream SAEs adapt.\n3. Test surgical edits in the reversible sandbox. If an edit is REJECTED for high KL or keeper drop, cut |alpha| or gain in half or switch component (`mlp` <-> `attn`) / layer. Try both Rank-1 Projection and Dormant MLP Neuron Gate.\n4. Commit an edit via `commit_staged_edit` as soon as you find one that passes all guards with a clear practice gain, then move to the next weak subset / downstream layer to stack multiple complementary edits (aim for 3\u20136 clean edits if they genuinely help!).\n5. Never try to overfit tiny noise \u2014 prefer clean, low-KL edits that generalize to unseen held-out test data. Call `finish_session` once you exhaust the edit budget or hit diminishing returns."
+    },
+    {
+      "role": "user",
+      "content": "Begin optimizing GPT-2 Small on the `blimp` benchmark (arm=`no_sae`, max_edits=6, max_turns=20)."
+    },
+    {
+      "turn": 1,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0ce9db487d28681d5b703b81420",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_0114a89255224266b4cc9669a8da586f",
+          "name": "inspect_benchmark_status",
+          "arguments": "{}"
+        }
+      ]
+    },
+    {
+      "turn": 1,
+      "role": "tool",
+      "call_id": "call_0114a89255224266b4cc9669a8da586f",
+      "name": "inspect_benchmark_status",
+      "result": {
+        "arm": "no_sae",
+        "available_layers": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "edits_committed": 0,
+        "edits_remaining": 6,
+        "guards": {
+          "max_wikitext2_kl": 0.05,
+          "min_keeper_retention": 0.9
+        },
+        "base_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0171,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1774,
+          "wikitext2_kl": 0.0
+        },
+        "current_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0171,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1774,
+          "wikitext2_kl": 0.0
+        },
+        "committed_history": [],
+        "worst_failing_samples": [
+          {
+            "item_id": "left_branch_island_echo_question_589",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.8941,
+            "bad_text": "What is a candle scaring teenager?",
+            "good_text": "A candle is scaring what teenager?"
+          },
+          {
+            "item_id": "left_branch_island_echo_question_456",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.7937,
+            "bad_text": "What was Suzanne helping waitresses?",
+            "good_text": "Suzanne was helping what waitresses?"
+          },
+          {
+            "item_id": "left_branch_island_echo_question_370",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.7089,
+            "bad_text": "What will Veronica think about peppers?",
+            "good_text": "Veronica will think about what peppers?"
+          },
+          {
+            "item_id": "tough_vs_raising_1_177",
+            "category": "tough_vs_raising_1",
+            "margin": -12.0059,
+            "bad_text": "Many glaciers were about to drop by.",
+            "good_text": "Many glaciers were enjoyable to drop by."
+          },
+          {
+            "item_id": "left_branch_island_echo_question_885",
+            "category": "left_branch_island_echo_question",
+            "margin": -10.6074,
+            "bad_text": "Which had Vincent climbed up mountain?",
+            "good_text": "Vincent had climbed up which mountain?"
+          }
+        ]
+      }
+    },
+    {
+      "turn": 2,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0d08a5487d2bfd3021ace5cd6a6",
+      "content": "The weakest subset is `left_branch_island_echo_question` (30% accuracy). I\u2019ll target it first at layer 6, test both edit types, and commit only improvements that pass the fluency and retention guards.",
+      "tool_calls": [
+        {
+          "call_id": "call_70329a949cf740938f91451dd2c17d53",
+          "name": "localize_raw_contrastive_direction",
+          "arguments": "{\"layer\":6,\"subset\":\"left_branch_island_echo_question\",\"pool\":\"mean\"}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "role": "tool",
+      "call_id": "call_70329a949cf740938f91451dd2c17d53",
+      "name": "localize_raw_contrastive_direction",
+      "result": {
+        "layer": 6,
+        "num_pairs_analyzed": 28,
+        "raw_diff_norm": 29.5427,
+        "separation_auc": 0.7513,
+        "pos_proj_mean": 433.0403,
+        "neg_proj_mean": 403.4977,
+        "note": "Direction points from good spans -> bad/failing spans. Negative alpha suppresses failure direction."
+      }
+    },
+    {
+      "turn": 3,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0d33ce087d2b8a98cee223a1bca",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_5d16aec1f6cf4fd4b8753921605c5fe9",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":6,\"mode\":\"projection\",\"component\":\"mlp\",\"alpha\":-0.4,\"subset\":\"left_branch_island_echo_question\"}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "role": "tool",
+      "call_id": "call_5d16aec1f6cf4fd4b8753921605c5fe9",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 6,
+          "component": "mlp",
+          "alpha": -0.4,
+          "delta_w_l2": 8.9514,
+          "delta_w_relative_norm": 0.0543,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0765,
+        "mean_margin_delta": -0.0594,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0765,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.2473,
+          "wikitext2_kl": 0.000447
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "turn": 4,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0d8194887d28453d1e41b7145e4",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_1b18694796e2473ca0be32a8052b1356",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":6,\"mode\":\"neuron_gate\",\"component\":\"mlp\",\"gain\":3,\"subset\":\"left_branch_island_echo_question\"}"
+        }
+      ]
+    },
+    {
+      "turn": 4,
+      "role": "tool",
+      "call_id": "call_1b18694796e2473ca0be32a8052b1356",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 6,
+          "unit": 616,
+          "theta": 1.8016,
+          "pos_proj_mean": 1.9663,
+          "neg_proj_mean": 1.569,
+          "bg_proj_p95": 1.38,
+          "practice_fire_rate_pos": 0.8333,
+          "practice_fire_rate_neg": 0.0,
+          "bg_fire_rate": 0.0082,
+          "entries_changed": 1537
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0513,
+        "mean_margin_delta": -0.0342,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0513,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1514,
+          "wikitext2_kl": 0.000473
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "turn": 5,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0dd9f6887d2b1a2262f13e1e4ad",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_94f9ef252fa941fb8eb12f6cbe324597",
+          "name": "localize_raw_contrastive_direction",
+          "arguments": "{\"layer\":8,\"subset\":\"left_branch_island_echo_question\"}"
+        }
+      ]
+    },
+    {
+      "turn": 5,
+      "role": "tool",
+      "call_id": "call_94f9ef252fa941fb8eb12f6cbe324597",
+      "name": "localize_raw_contrastive_direction",
+      "result": {
+        "layer": 8,
+        "num_pairs_analyzed": 28,
+        "raw_diff_norm": 31.5171,
+        "separation_auc": 0.7819,
+        "pos_proj_mean": 421.2098,
+        "neg_proj_mean": 389.6927,
+        "note": "Direction points from good spans -> bad/failing spans. Negative alpha suppresses failure direction."
+      }
+    },
+    {
+      "turn": 6,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0dfd2d087d2b31f83749030458e",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_dafd7e0cf5a04938bb2f89e12da3490f",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":8,\"mode\":\"projection\",\"component\":\"attn\",\"alpha\":-0.8,\"subset\":\"left_branch_island_echo_question\"}"
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "role": "tool",
+      "call_id": "call_dafd7e0cf5a04938bb2f89e12da3490f",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 8,
+          "component": "attn",
+          "alpha": -0.8,
+          "delta_w_l2": 6.9321,
+          "delta_w_relative_norm": 0.07377,
+          "effective_dof": 1536
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.525,
+        "primary_score_delta": 0.0062,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0474,
+        "mean_margin_delta": -0.0303,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.525,
+          "blimp_acc": 0.525,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.6
+          },
+          "mean_margin": -0.0474,
+          "num_items": 160,
+          "num_failing": 76,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.2196,
+          "wikitext2_kl": 0.000368
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": true,
+          "all_guards_passed": true
+        },
+        "next_action_hint": "All guards PASSED! Call commit_staged_edit if you want to permanently commit this edit, or stage another candidate to compare."
+      }
+    },
+    {
+      "turn": 7,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0e4c3f887d298aee65e47443f2f",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_461396e8b2b14c45ad40641409872131",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":8,\"mode\":\"neuron_gate\",\"gain\":6,\"subset\":\"left_branch_island_echo_question\"}"
+        }
+      ]
+    },
+    {
+      "turn": 7,
+      "role": "tool",
+      "call_id": "call_461396e8b2b14c45ad40641409872131",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 8,
+          "unit": 918,
+          "theta": 1.1833,
+          "pos_proj_mean": 1.5452,
+          "neg_proj_mean": 0.9634,
+          "bg_proj_p95": 0.8642,
+          "practice_fire_rate_pos": 0.9583,
+          "practice_fire_rate_neg": 0.0,
+          "bg_fire_rate": 0.0082,
+          "entries_changed": 1537
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0967,
+        "mean_margin_delta": -0.0796,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0967,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.2194,
+          "wikitext2_kl": 0.001505
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "turn": 8,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0eb496887d2b4115ca1dbc7c75a",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_741c6e850ed145658d6a72b2a81c2093",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":8,\"mode\":\"projection\",\"component\":\"mlp\",\"alpha\":-0.8,\"subset\":\"left_branch_island_echo_question\"}"
+        }
+      ]
+    },
+    {
+      "turn": 8,
+      "role": "tool",
+      "call_id": "call_741c6e850ed145658d6a72b2a81c2093",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 8,
+          "component": "mlp",
+          "alpha": -0.8,
+          "delta_w_l2": 13.9499,
+          "delta_w_relative_norm": 0.06708,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.1336,
+        "mean_margin_delta": -0.1165,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.275,
+            "principle_A_reconstruction": 0.55,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.1336,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 0.988,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.294,
+          "wikitext2_kl": 0.000999
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "turn": 9,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0f0b5b887d295018b732e3fcef5",
+      "content": "The left-branch edits have not improved their target subset. One attention edit gained a single item elsewhere but reduced the mean margin, so I haven\u2019t committed it. I\u2019ll next target `principle_A_reconstruction` at layer 8.",
+      "tool_calls": [
+        {
+          "call_id": "call_f654718381f6481186133f4584a015c7",
+          "name": "localize_raw_contrastive_direction",
+          "arguments": "{\"layer\":8,\"subset\":\"principle_A_reconstruction\"}"
+        }
+      ]
+    },
+    {
+      "turn": 9,
+      "role": "tool",
+      "call_id": "call_f654718381f6481186133f4584a015c7",
+      "name": "localize_raw_contrastive_direction",
+      "result": {
+        "layer": 8,
+        "num_pairs_analyzed": 19,
+        "raw_diff_norm": 13.4325,
+        "separation_auc": 0.9861,
+        "pos_proj_mean": 15.6966,
+        "neg_proj_mean": 2.2641,
+        "note": "Direction points from good spans -> bad/failing spans. Negative alpha suppresses failure direction."
+      }
+    },
+    {
+      "turn": 10,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0f3b66c87d2bbf0e8f86b0b282a",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_eff23891190444898fa5b8f252f6b214",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":8,\"mode\":\"projection\",\"component\":\"mlp\",\"alpha\":-0.8,\"subset\":\"principle_A_reconstruction\"}"
+        }
+      ]
+    },
+    {
+      "turn": 10,
+      "role": "tool",
+      "call_id": "call_eff23891190444898fa5b8f252f6b214",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 8,
+          "component": "mlp",
+          "alpha": -0.8,
+          "delta_w_l2": 9.5281,
+          "delta_w_relative_norm": 0.04582,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.525,
+        "primary_score_delta": 0.0062,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.1095,
+        "mean_margin_delta": -0.0924,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.525,
+          "blimp_acc": 0.525,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.325,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.1095,
+          "num_items": 160,
+          "num_failing": 76,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.0897,
+          "wikitext2_kl": 0.000481
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": true,
+          "all_guards_passed": true
+        },
+        "next_action_hint": "All guards PASSED! Call commit_staged_edit if you want to permanently commit this edit, or stage another candidate to compare."
+      }
+    },
+    {
+      "turn": 11,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0f8936887d295d019553a3a2e1e",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_46cd6d18751b4f3d8bdeeadba4cb1a81",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":8,\"mode\":\"neuron_gate\",\"gain\":6,\"subset\":\"principle_A_reconstruction\"}"
+        }
+      ]
+    },
+    {
+      "turn": 11,
+      "role": "tool",
+      "call_id": "call_46cd6d18751b4f3d8bdeeadba4cb1a81",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 8,
+          "unit": 918,
+          "theta": 0.3841,
+          "pos_proj_mean": 0.2748,
+          "neg_proj_mean": -0.5191,
+          "bg_proj_p95": 0.2341,
+          "practice_fire_rate_pos": 0.1579,
+          "practice_fire_rate_neg": 0.0,
+          "bg_fire_rate": 0.0033,
+          "entries_changed": 1537
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0209,
+        "mean_margin_delta": -0.0038,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0209,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.2019,
+          "wikitext2_kl": 3.5e-05
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "turn": 12,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e0fe15d087d2a1acc6a88ba7f0d1",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_8c9bac682162447fa5fe886258b7346a",
+          "name": "localize_raw_contrastive_direction",
+          "arguments": "{\"layer\":10,\"subset\":\"principle_A_reconstruction\"}"
+        }
+      ]
+    },
+    {
+      "turn": 12,
+      "role": "tool",
+      "call_id": "call_8c9bac682162447fa5fe886258b7346a",
+      "name": "localize_raw_contrastive_direction",
+      "result": {
+        "layer": 10,
+        "num_pairs_analyzed": 19,
+        "raw_diff_norm": 15.7649,
+        "separation_auc": 0.9806,
+        "pos_proj_mean": 33.0439,
+        "neg_proj_mean": 17.279,
+        "note": "Direction points from good spans -> bad/failing spans. Negative alpha suppresses failure direction."
+      }
+    },
+    {
+      "turn": 13,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e100297487d2b67616a9576a5859",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_b4cf077f09b1400c8f0e07c16001eba0",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":10,\"mode\":\"projection\",\"component\":\"attn\",\"alpha\":-0.8,\"subset\":\"principle_A_reconstruction\"}"
+        }
+      ]
+    },
+    {
+      "turn": 13,
+      "role": "tool",
+      "call_id": "call_b4cf077f09b1400c8f0e07c16001eba0",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 10,
+          "component": "attn",
+          "alpha": -0.8,
+          "delta_w_l2": 6.3474,
+          "delta_w_relative_norm": 0.05637,
+          "effective_dof": 1536
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0793,
+        "mean_margin_delta": -0.0622,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0793,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 47.9859,
+          "wikitext2_kl": 0.001104
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "turn": 14,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e104dba887d2be65128a9b6d169b",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_88ccdbe5288b4cec8bdeff4b4b9f1b98",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":10,\"mode\":\"projection\",\"component\":\"mlp\",\"alpha\":0.8,\"subset\":\"principle_A_reconstruction\"}"
+        }
+      ]
+    },
+    {
+      "turn": 14,
+      "role": "tool",
+      "call_id": "call_88ccdbe5288b4cec8bdeff4b4b9f1b98",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 10,
+          "component": "mlp",
+          "alpha": 0.8,
+          "delta_w_l2": 11.4498,
+          "delta_w_relative_norm": 0.04185,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": 0.1252,
+        "mean_margin_delta": 0.1423,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.55,
+            "npi_present_1": 0.625,
+            "tough_vs_raising_1": 0.6
+          },
+          "mean_margin": 0.1252,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 0.9759,
+          "ood_keeper_blimp_acc": 0.925,
+          "wikitext2_ppl": 48.8066,
+          "wikitext2_kl": 0.004315
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": true,
+          "all_guards_passed": true
+        },
+        "next_action_hint": "All guards PASSED! Call commit_staged_edit if you want to permanently commit this edit, or stage another candidate to compare."
+      }
+    },
+    {
+      "turn": 15,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e10a318c87d2845c7ef16547facd",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_e0678364612a4e8b9afe5374bcc98b8e",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":10,\"mode\":\"projection\",\"component\":\"mlp\",\"alpha\":0.4,\"subset\":\"principle_A_reconstruction\"}"
+        }
+      ]
+    },
+    {
+      "turn": 15,
+      "role": "tool",
+      "call_id": "call_e0678364612a4e8b9afe5374bcc98b8e",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 10,
+          "component": "mlp",
+          "alpha": 0.4,
+          "delta_w_l2": 5.7249,
+          "delta_w_relative_norm": 0.02092,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5312,
+        "primary_score_delta": 0.0124,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": 0.0579,
+        "mean_margin_delta": 0.075,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5312,
+          "blimp_acc": 0.5312,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.55,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.6
+          },
+          "mean_margin": 0.0579,
+          "num_items": 160,
+          "num_failing": 75,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.448,
+          "wikitext2_kl": 0.001085
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": true,
+          "all_guards_passed": true
+        },
+        "next_action_hint": "All guards PASSED! Call commit_staged_edit if you want to permanently commit this edit, or stage another candidate to compare."
+      }
+    },
+    {
+      "turn": 16,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e10f512487d29eed7dd38d0e9d48",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_4c6994bfea8a4ad082511f515bf4e31c",
+          "name": "commit_staged_edit",
+          "arguments": "{\"rationale\":\"Layer-10 MLP positive rank-1 edit improves Principle A and tough/raising by one item each, raising total practice accuracy from 0.5188 to 0.5312 and mean margin by 0.075 with full keeper retention and KL 0.001085. Negative suppression was consistently unhelpful; the smaller positive scale avoids losses seen at 0.8.\"}"
+        }
+      ]
+    },
+    {
+      "turn": 16,
+      "role": "tool",
+      "call_id": "call_4c6994bfea8a4ad082511f515bf4e31c",
+      "name": "commit_staged_edit",
+      "result": {
+        "committed": {
+          "edit_num": 1,
+          "layer": 10,
+          "edit_type": "rank1_projection",
+          "description": "L10.mlp raw diff_dir projection (alpha=+0.400)",
+          "rationale": "Layer-10 MLP positive rank-1 edit improves Principle A and tough/raising by one item each, raising total practice accuracy from 0.5188 to 0.5312 and mean margin by 0.075 with full keeper retention and KL 0.001085. Negative suppression was consistently unhelpful; the smaller positive scale avoids losses seen at 0.8.",
+          "tensors_edited": [
+            "transformer.h.10.mlp.c_proj.weight",
+            "transformer.h.10.mlp.c_proj.bias"
+          ],
+          "entries_changed": 2360064,
+          "effective_dof": 3840,
+          "cumulative_entries_changed": 2360064,
+          "l2_norm": 5.7296
+        },
+        "current_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5312,
+          "blimp_acc": 0.5312,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.55,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.6
+          },
+          "mean_margin": 0.0579,
+          "num_items": 160,
+          "num_failing": 75,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.448,
+          "wikitext2_kl": 0.001085
+        },
+        "downstream_sae_patches": [],
+        "edits_remaining": 5
+      }
+    },
+    {
+      "turn": 17,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e112754c87d2902121b194641d50",
+      "content": "Committed a layer-10 MLP edit: practice accuracy rose from 51.88% to 53.12%, mean margin improved, keeper retention stayed at 100%, and WikiText-2 KL is 0.001085. Suppressing the contrastive direction was unhelpful; modestly amplifying it worked better here. I\u2019ll test one downstream edit for the remaining left-branch weakness.",
+      "tool_calls": [
+        {
+          "call_id": "call_5d20e02b93cd46879e45011702585fd5",
+          "name": "localize_raw_contrastive_direction",
+          "arguments": "{\"layer\":11,\"subset\":\"left_branch_island_echo_question\"}"
+        }
+      ]
+    },
+    {
+      "turn": 17,
+      "role": "tool",
+      "call_id": "call_5d20e02b93cd46879e45011702585fd5",
+      "name": "localize_raw_contrastive_direction",
+      "result": {
+        "layer": 11,
+        "num_pairs_analyzed": 28,
+        "raw_diff_norm": 37.0856,
+        "separation_auc": 0.7921,
+        "pos_proj_mean": 341.4041,
+        "neg_proj_mean": 304.3185,
+        "note": "Direction points from good spans -> bad/failing spans. Negative alpha suppresses failure direction."
+      }
+    },
+    {
+      "turn": 18,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e117879c87d28a534f3fae83961f",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_656d8548903e4747860f5d27464244c2",
+          "name": "stage_and_test_raw_direction_edit",
+          "arguments": "{\"layer\":11,\"mode\":\"projection\",\"component\":\"mlp\",\"alpha\":0.4,\"subset\":\"left_branch_island_echo_question\"}"
+        }
+      ]
+    },
+    {
+      "turn": 18,
+      "role": "tool",
+      "call_id": "call_656d8548903e4747860f5d27464244c2",
+      "name": "stage_and_test_raw_direction_edit",
+      "result": {
+        "stage_meta": {
+          "layer": 11,
+          "component": "mlp",
+          "alpha": 0.4,
+          "delta_w_l2": 6.9339,
+          "delta_w_relative_norm": 0.02278,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5312,
+        "staged_primary_score": 0.525,
+        "primary_score_delta": -0.0062,
+        "before_mean_margin": 0.0579,
+        "staged_mean_margin": 0.0014,
+        "mean_margin_delta": -0.0565,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.525,
+          "blimp_acc": 0.525,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.275,
+            "principle_A_reconstruction": 0.55,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.6
+          },
+          "mean_margin": 0.0014,
+          "num_items": 160,
+          "num_failing": 76,
+          "keeper_retention": 0.988,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.4273,
+          "wikitext2_kl": 0.001361
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "turn": 19,
+      "role": "assistant",
+      "response_id": "resp_0f0f17a1a0e0cb08006b08e11c617487d29fa6282bc72e61a6",
+      "content": "",
+      "tool_calls": [
+        {
+          "call_id": "call_4d941cb3079d47fc9b4a9da62371381f",
+          "name": "finish_session",
+          "arguments": "{\"summary\":\"Committed one clean raw-direction rank-1 projection at L10 MLP, alpha +0.4, localized on principle_A_reconstruction. Practice BLiMP improved from 0.5188 to 0.5312 (83 to 85 of 160); Principle A improved 0.525 to 0.55 and tough/raising 0.575 to 0.6. Mean margin improved -0.0171 to 0.0579. Final committed WikiText-2 KL 0.001085, perplexity 48.448 versus baseline 48.1774, keeper retention 1.0. Tested both projections and dormant-neuron gates across L6/L8 and downstream projections L10/L11. Did not commit no-gain gates, incidental one-item gains with worse margins, or final L11 left-branch edit that reduced accuracy. Stopped at diminishing returns; held-out generalization remains to be evaluated.\"}"
+        }
+      ]
+    },
+    {
+      "turn": 19,
+      "role": "tool",
+      "call_id": "call_4d941cb3079d47fc9b4a9da62371381f",
+      "name": "finish_session",
+      "result": {
+        "status": "session_finished",
+        "edits_committed": 1
+      }
+    }
+  ],
+  "tool_trace": [
+    {
+      "tool": "inspect_benchmark_status",
+      "args": {},
+      "result": {
+        "arm": "no_sae",
+        "available_layers": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "edits_committed": 0,
+        "edits_remaining": 6,
+        "guards": {
+          "max_wikitext2_kl": 0.05,
+          "min_keeper_retention": 0.9
+        },
+        "base_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0171,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1774,
+          "wikitext2_kl": 0.0
+        },
+        "current_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0171,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1774,
+          "wikitext2_kl": 0.0
+        },
+        "committed_history": [],
+        "worst_failing_samples": [
+          {
+            "item_id": "left_branch_island_echo_question_589",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.8941,
+            "bad_text": "What is a candle scaring teenager?",
+            "good_text": "A candle is scaring what teenager?"
+          },
+          {
+            "item_id": "left_branch_island_echo_question_456",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.7937,
+            "bad_text": "What was Suzanne helping waitresses?",
+            "good_text": "Suzanne was helping what waitresses?"
+          },
+          {
+            "item_id": "left_branch_island_echo_question_370",
+            "category": "left_branch_island_echo_question",
+            "margin": -13.7089,
+            "bad_text": "What will Veronica think about peppers?",
+            "good_text": "Veronica will think about what peppers?"
+          },
+          {
+            "item_id": "tough_vs_raising_1_177",
+            "category": "tough_vs_raising_1",
+            "margin": -12.0059,
+            "bad_text": "Many glaciers were about to drop by.",
+            "good_text": "Many glaciers were enjoyable to drop by."
+          },
+          {
+            "item_id": "left_branch_island_echo_question_885",
+            "category": "left_branch_island_echo_question",
+            "margin": -10.6074,
+            "bad_text": "Which had Vincent climbed up mountain?",
+            "good_text": "Vincent had climbed up which mountain?"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "localize_raw_contrastive_direction",
+      "args": {
+        "layer": 6,
+        "subset": "left_branch_island_echo_question",
+        "pool": "mean"
+      },
+      "result": {
+        "layer": 6,
+        "num_pairs_analyzed": 28,
+        "raw_diff_norm": 29.5427,
+        "separation_auc": 0.7513,
+        "pos_proj_mean": 433.0403,
+        "neg_proj_mean": 403.4977,
+        "note": "Direction points from good spans -> bad/failing spans. Negative alpha suppresses failure direction."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 6,
+        "mode": "projection",
+        "component": "mlp",
+        "alpha": -0.4,
+        "subset": "left_branch_island_echo_question"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 6,
+          "component": "mlp",
+          "alpha": -0.4,
+          "delta_w_l2": 8.9514,
+          "delta_w_relative_norm": 0.0543,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0765,
+        "mean_margin_delta": -0.0594,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0765,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.2473,
+          "wikitext2_kl": 0.000447
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 6,
+        "mode": "neuron_gate",
+        "component": "mlp",
+        "gain": 3,
+        "subset": "left_branch_island_echo_question"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 6,
+          "unit": 616,
+          "theta": 1.8016,
+          "pos_proj_mean": 1.9663,
+          "neg_proj_mean": 1.569,
+          "bg_proj_p95": 1.38,
+          "practice_fire_rate_pos": 0.8333,
+          "practice_fire_rate_neg": 0.0,
+          "bg_fire_rate": 0.0082,
+          "entries_changed": 1537
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0513,
+        "mean_margin_delta": -0.0342,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0513,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.1514,
+          "wikitext2_kl": 0.000473
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "tool": "localize_raw_contrastive_direction",
+      "args": {
+        "layer": 8,
+        "subset": "left_branch_island_echo_question"
+      },
+      "result": {
+        "layer": 8,
+        "num_pairs_analyzed": 28,
+        "raw_diff_norm": 31.5171,
+        "separation_auc": 0.7819,
+        "pos_proj_mean": 421.2098,
+        "neg_proj_mean": 389.6927,
+        "note": "Direction points from good spans -> bad/failing spans. Negative alpha suppresses failure direction."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 8,
+        "mode": "projection",
+        "component": "attn",
+        "alpha": -0.8,
+        "subset": "left_branch_island_echo_question"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 8,
+          "component": "attn",
+          "alpha": -0.8,
+          "delta_w_l2": 6.9321,
+          "delta_w_relative_norm": 0.07377,
+          "effective_dof": 1536
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.525,
+        "primary_score_delta": 0.0062,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0474,
+        "mean_margin_delta": -0.0303,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.525,
+          "blimp_acc": 0.525,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.6
+          },
+          "mean_margin": -0.0474,
+          "num_items": 160,
+          "num_failing": 76,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.2196,
+          "wikitext2_kl": 0.000368
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": true,
+          "all_guards_passed": true
+        },
+        "next_action_hint": "All guards PASSED! Call commit_staged_edit if you want to permanently commit this edit, or stage another candidate to compare."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 8,
+        "mode": "neuron_gate",
+        "gain": 6,
+        "subset": "left_branch_island_echo_question"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 8,
+          "unit": 918,
+          "theta": 1.1833,
+          "pos_proj_mean": 1.5452,
+          "neg_proj_mean": 0.9634,
+          "bg_proj_p95": 0.8642,
+          "practice_fire_rate_pos": 0.9583,
+          "practice_fire_rate_neg": 0.0,
+          "bg_fire_rate": 0.0082,
+          "entries_changed": 1537
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0967,
+        "mean_margin_delta": -0.0796,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0967,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.2194,
+          "wikitext2_kl": 0.001505
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 8,
+        "mode": "projection",
+        "component": "mlp",
+        "alpha": -0.8,
+        "subset": "left_branch_island_echo_question"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 8,
+          "component": "mlp",
+          "alpha": -0.8,
+          "delta_w_l2": 13.9499,
+          "delta_w_relative_norm": 0.06708,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.1336,
+        "mean_margin_delta": -0.1165,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.275,
+            "principle_A_reconstruction": 0.55,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.1336,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 0.988,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.294,
+          "wikitext2_kl": 0.000999
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "tool": "localize_raw_contrastive_direction",
+      "args": {
+        "layer": 8,
+        "subset": "principle_A_reconstruction"
+      },
+      "result": {
+        "layer": 8,
+        "num_pairs_analyzed": 19,
+        "raw_diff_norm": 13.4325,
+        "separation_auc": 0.9861,
+        "pos_proj_mean": 15.6966,
+        "neg_proj_mean": 2.2641,
+        "note": "Direction points from good spans -> bad/failing spans. Negative alpha suppresses failure direction."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 8,
+        "mode": "projection",
+        "component": "mlp",
+        "alpha": -0.8,
+        "subset": "principle_A_reconstruction"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 8,
+          "component": "mlp",
+          "alpha": -0.8,
+          "delta_w_l2": 9.5281,
+          "delta_w_relative_norm": 0.04582,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.525,
+        "primary_score_delta": 0.0062,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.1095,
+        "mean_margin_delta": -0.0924,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.525,
+          "blimp_acc": 0.525,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.325,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.1095,
+          "num_items": 160,
+          "num_failing": 76,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.0897,
+          "wikitext2_kl": 0.000481
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": true,
+          "all_guards_passed": true
+        },
+        "next_action_hint": "All guards PASSED! Call commit_staged_edit if you want to permanently commit this edit, or stage another candidate to compare."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 8,
+        "mode": "neuron_gate",
+        "gain": 6,
+        "subset": "principle_A_reconstruction"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 8,
+          "unit": 918,
+          "theta": 0.3841,
+          "pos_proj_mean": 0.2748,
+          "neg_proj_mean": -0.5191,
+          "bg_proj_p95": 0.2341,
+          "practice_fire_rate_pos": 0.1579,
+          "practice_fire_rate_neg": 0.0,
+          "bg_fire_rate": 0.0033,
+          "entries_changed": 1537
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0209,
+        "mean_margin_delta": -0.0038,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0209,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.2019,
+          "wikitext2_kl": 3.5e-05
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "tool": "localize_raw_contrastive_direction",
+      "args": {
+        "layer": 10,
+        "subset": "principle_A_reconstruction"
+      },
+      "result": {
+        "layer": 10,
+        "num_pairs_analyzed": 19,
+        "raw_diff_norm": 15.7649,
+        "separation_auc": 0.9806,
+        "pos_proj_mean": 33.0439,
+        "neg_proj_mean": 17.279,
+        "note": "Direction points from good spans -> bad/failing spans. Negative alpha suppresses failure direction."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 10,
+        "mode": "projection",
+        "component": "attn",
+        "alpha": -0.8,
+        "subset": "principle_A_reconstruction"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 10,
+          "component": "attn",
+          "alpha": -0.8,
+          "delta_w_l2": 6.3474,
+          "delta_w_relative_norm": 0.05637,
+          "effective_dof": 1536
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": -0.0793,
+        "mean_margin_delta": -0.0622,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.525,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.575
+          },
+          "mean_margin": -0.0793,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 47.9859,
+          "wikitext2_kl": 0.001104
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 10,
+        "mode": "projection",
+        "component": "mlp",
+        "alpha": 0.8,
+        "subset": "principle_A_reconstruction"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 10,
+          "component": "mlp",
+          "alpha": 0.8,
+          "delta_w_l2": 11.4498,
+          "delta_w_relative_norm": 0.04185,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5188,
+        "primary_score_delta": 0.0,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": 0.1252,
+        "mean_margin_delta": 0.1423,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5188,
+          "blimp_acc": 0.5188,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.55,
+            "npi_present_1": 0.625,
+            "tough_vs_raising_1": 0.6
+          },
+          "mean_margin": 0.1252,
+          "num_items": 160,
+          "num_failing": 77,
+          "keeper_retention": 0.9759,
+          "ood_keeper_blimp_acc": 0.925,
+          "wikitext2_ppl": 48.8066,
+          "wikitext2_kl": 0.004315
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": true,
+          "all_guards_passed": true
+        },
+        "next_action_hint": "All guards PASSED! Call commit_staged_edit if you want to permanently commit this edit, or stage another candidate to compare."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 10,
+        "mode": "projection",
+        "component": "mlp",
+        "alpha": 0.4,
+        "subset": "principle_A_reconstruction"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 10,
+          "component": "mlp",
+          "alpha": 0.4,
+          "delta_w_l2": 5.7249,
+          "delta_w_relative_norm": 0.02092,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5188,
+        "staged_primary_score": 0.5312,
+        "primary_score_delta": 0.0124,
+        "before_mean_margin": -0.0171,
+        "staged_mean_margin": 0.0579,
+        "mean_margin_delta": 0.075,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5312,
+          "blimp_acc": 0.5312,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.55,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.6
+          },
+          "mean_margin": 0.0579,
+          "num_items": 160,
+          "num_failing": 75,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.448,
+          "wikitext2_kl": 0.001085
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": true,
+          "all_guards_passed": true
+        },
+        "next_action_hint": "All guards PASSED! Call commit_staged_edit if you want to permanently commit this edit, or stage another candidate to compare."
+      }
+    },
+    {
+      "tool": "commit_staged_edit",
+      "args": {
+        "rationale": "Layer-10 MLP positive rank-1 edit improves Principle A and tough/raising by one item each, raising total practice accuracy from 0.5188 to 0.5312 and mean margin by 0.075 with full keeper retention and KL 0.001085. Negative suppression was consistently unhelpful; the smaller positive scale avoids losses seen at 0.8."
+      },
+      "result": {
+        "committed": {
+          "edit_num": 1,
+          "layer": 10,
+          "edit_type": "rank1_projection",
+          "description": "L10.mlp raw diff_dir projection (alpha=+0.400)",
+          "rationale": "Layer-10 MLP positive rank-1 edit improves Principle A and tough/raising by one item each, raising total practice accuracy from 0.5188 to 0.5312 and mean margin by 0.075 with full keeper retention and KL 0.001085. Negative suppression was consistently unhelpful; the smaller positive scale avoids losses seen at 0.8.",
+          "tensors_edited": [
+            "transformer.h.10.mlp.c_proj.weight",
+            "transformer.h.10.mlp.c_proj.bias"
+          ],
+          "entries_changed": 2360064,
+          "effective_dof": 3840,
+          "cumulative_entries_changed": 2360064,
+          "l2_norm": 5.7296
+        },
+        "current_practice_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.5312,
+          "blimp_acc": 0.5312,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.3,
+            "principle_A_reconstruction": 0.55,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.6
+          },
+          "mean_margin": 0.0579,
+          "num_items": 160,
+          "num_failing": 75,
+          "keeper_retention": 1.0,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.448,
+          "wikitext2_kl": 0.001085
+        },
+        "downstream_sae_patches": [],
+        "edits_remaining": 5
+      }
+    },
+    {
+      "tool": "localize_raw_contrastive_direction",
+      "args": {
+        "layer": 11,
+        "subset": "left_branch_island_echo_question"
+      },
+      "result": {
+        "layer": 11,
+        "num_pairs_analyzed": 28,
+        "raw_diff_norm": 37.0856,
+        "separation_auc": 0.7921,
+        "pos_proj_mean": 341.4041,
+        "neg_proj_mean": 304.3185,
+        "note": "Direction points from good spans -> bad/failing spans. Negative alpha suppresses failure direction."
+      }
+    },
+    {
+      "tool": "stage_and_test_raw_direction_edit",
+      "args": {
+        "layer": 11,
+        "mode": "projection",
+        "component": "mlp",
+        "alpha": 0.4,
+        "subset": "left_branch_island_echo_question"
+      },
+      "result": {
+        "stage_meta": {
+          "layer": 11,
+          "component": "mlp",
+          "alpha": 0.4,
+          "delta_w_l2": 6.9339,
+          "delta_w_relative_norm": 0.02278,
+          "effective_dof": 3840
+        },
+        "before_primary_score": 0.5312,
+        "staged_primary_score": 0.525,
+        "primary_score_delta": -0.0062,
+        "before_mean_margin": 0.0579,
+        "staged_mean_margin": 0.0014,
+        "mean_margin_delta": -0.0565,
+        "staged_metrics": {
+          "benchmark": "blimp",
+          "split": "practice",
+          "primary_metric_name": "blimp_acc",
+          "primary_score": 0.525,
+          "blimp_acc": 0.525,
+          "per_subset_acc": {
+            "left_branch_island_echo_question": 0.275,
+            "principle_A_reconstruction": 0.55,
+            "npi_present_1": 0.675,
+            "tough_vs_raising_1": 0.6
+          },
+          "mean_margin": 0.0014,
+          "num_items": 160,
+          "num_failing": 76,
+          "keeper_retention": 0.988,
+          "ood_keeper_blimp_acc": 0.9375,
+          "wikitext2_ppl": 48.4273,
+          "wikitext2_kl": 0.001361
+        },
+        "guard_checks": {
+          "kl_ok": true,
+          "keeper_ok": true,
+          "progressed": false,
+          "all_guards_passed": false
+        },
+        "next_action_hint": "Guards REJECTED this candidate. Try a smaller |alpha|/gain, a different layer, or a different latent."
+      }
+    },
+    {
+      "tool": "finish_session",
+      "args": {
+        "summary": "Committed one clean raw-direction rank-1 projection at L10 MLP, alpha +0.4, localized on principle_A_reconstruction. Practice BLiMP improved from 0.5188 to 0.5312 (83 to 85 of 160); Principle A improved 0.525 to 0.55 and tough/raising 0.575 to 0.6. Mean margin improved -0.0171 to 0.0579. Final committed WikiText-2 KL 0.001085, perplexity 48.448 versus baseline 48.1774, keeper retention 1.0. Tested both projections and dormant-neuron gates across L6/L8 and downstream projections L10/L11. Did not commit no-gain gates, incidental one-item gains with worse margins, or final L11 left-branch edit that reduced accuracy. Stopped at diminishing returns; held-out generalization remains to be evaluated."
+      },
+      "result": {
+        "status": "session_finished",
+        "edits_committed": 1
+      }
+    }
+  ]
+}

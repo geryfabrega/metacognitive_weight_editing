@@ -1,0 +1,503 @@
+{
+  "no_sae": {
+    "arm": "no_sae",
+    "benchmark": "blimp",
+    "benchmark_meta": {
+      "dataset": "nyu-mll/blimp",
+      "subsets": [
+        "left_branch_island_echo_question",
+        "principle_A_reconstruction",
+        "npi_present_1",
+        "tough_vs_raising_1"
+      ],
+      "keeper_subsets": [
+        "determiner_noun_agreement_1",
+        "animate_subject_passive"
+      ],
+      "seed": 45,
+      "practice_n": 160,
+      "heldout_n": 3840,
+      "keeper_n": 80
+    },
+    "edits_committed": 2,
+    "committed_history": [
+      {
+        "edit_num": 1,
+        "layer": 9,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L9 dormant MLP gate raw diff_dir (gain=6.00)",
+        "rationale": "Layer-9 NPI-targeted dormant neuron gate raises practice accuracy from 44.37% to 46.25% and NPI accuracy from 45% to 57.5%, with KL 0.000633 and keeper retention 0.9718.",
+        "tensors_edited": [
+          "transformer.h.9.mlp.c_fc.weight",
+          "transformer.h.9.mlp.c_fc.bias",
+          "transformer.h.9.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 1537,
+        "l2_norm": 11.4749
+      },
+      {
+        "edit_num": 2,
+        "layer": 10,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L10 dormant MLP gate raw diff_dir (gain=6.00)",
+        "rationale": "Complementary layer-10 reconstruction gate adds two net practice successes, lifting accuracy to 47.5%, while cumulative KL remains 0.00083 and keeper retention 0.9859.",
+        "tensors_edited": [
+          "transformer.h.10.mlp.c_fc.weight",
+          "transformer.h.10.mlp.c_fc.bias",
+          "transformer.h.10.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 3074,
+        "l2_norm": 15.9329
+      }
+    ],
+    "sae_patch_logs": [],
+    "base_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4437,
+      "blimp_acc": 0.4437,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.4,
+        "principle_A_reconstruction": 0.325,
+        "npi_present_1": 0.45,
+        "tough_vs_raising_1": 0.6
+      },
+      "mean_margin": -0.4022,
+      "num_items": 160,
+      "num_failing": 89,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.475,
+      "blimp_acc": 0.475,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.425,
+        "principle_A_reconstruction": 0.325,
+        "npi_present_1": 0.575,
+        "tough_vs_raising_1": 0.575
+      },
+      "mean_margin": -0.3756,
+      "num_items": 160,
+      "num_failing": 84,
+      "keeper_retention": 0.9859,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.2625,
+      "wikitext2_kl": 0.00083
+    },
+    "base_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4839,
+      "blimp_acc": 0.4839,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3031,
+        "principle_A_reconstruction": 0.4208,
+        "npi_present_1": 0.5792,
+        "tough_vs_raising_1": 0.6323
+      },
+      "mean_margin": -0.2502,
+      "num_items": 3840,
+      "num_failing": 1982,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4815,
+      "blimp_acc": 0.4815,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3125,
+        "principle_A_reconstruction": 0.424,
+        "npi_present_1": 0.5729,
+        "tough_vs_raising_1": 0.6167
+      },
+      "mean_margin": -0.2926,
+      "num_items": 3840,
+      "num_failing": 1991,
+      "keeper_retention": 0.9553,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.2625,
+      "wikitext2_kl": 0.00083
+    },
+    "heldout_primary_delta": -0.0024,
+    "heldout_margin_delta": -0.0424,
+    "finish_summary": "Committed two raw-direction dormant MLP gates without SAEs or gradient training: L9 NPI gain 6 and L10 reconstruction gain 6, both margin 0. Practice BLiMP rose from 0.4437 to 0.475 (+5 net items/160); NPI 0.45\u21920.575 and left-branch 0.40\u21920.425. Final committed WikiText-2 KL 0.00083, keeper retention 0.9859, PPL 48.2625 versus baseline 48.1774. Earlier layer 6\u20138 projections/gates and final L10 projection did not improve accuracy and were not committed. Stopping with only the two guard-passing edits; held-out generalization remains to be evaluated.",
+    "agent_model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "api_usage": {
+      "input_tokens": 88784,
+      "cached_input_tokens": 81583,
+      "output_tokens": 1212,
+      "reasoning_tokens": 147,
+      "total_tokens": 89996,
+      "turns": 19
+    },
+    "tool_trace_len": 19,
+    "elapsed_sec": 156.68
+  },
+  "frozen_sae": {
+    "arm": "frozen_sae",
+    "benchmark": "blimp",
+    "benchmark_meta": {
+      "dataset": "nyu-mll/blimp",
+      "subsets": [
+        "left_branch_island_echo_question",
+        "principle_A_reconstruction",
+        "npi_present_1",
+        "tough_vs_raising_1"
+      ],
+      "keeper_subsets": [
+        "determiner_noun_agreement_1",
+        "animate_subject_passive"
+      ],
+      "seed": 45,
+      "practice_n": 160,
+      "heldout_n": 3840,
+      "keeper_n": 80
+    },
+    "edits_committed": 2,
+    "committed_history": [
+      {
+        "edit_num": 1,
+        "layer": 8,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L8 dormant MLP gate read=[4249, 19318] write=-1*[4249] (gain=8.00)",
+        "rationale": "Suppress an overactive fronted-question direction only under joint question/uncertainty feature gating; improves echo-question accuracy by 10 points and total accuracy by 2.51 points with negligible KL and 95.77% keeper retention.",
+        "tensors_edited": [
+          "transformer.h.8.mlp.c_fc.weight",
+          "transformer.h.8.mlp.c_fc.bias",
+          "transformer.h.8.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 1537,
+        "l2_norm": 12.2731
+      },
+      {
+        "edit_num": 2,
+        "layer": 9,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L9 dormant MLP gate read=[14660] write=+1*[16914] (gain=6.00)",
+        "rationale": "Gated injection of a personal-pronoun/action direction recovers reconstruction and tough/raising examples, increasing practice accuracy by 1.25 points while preserving keeper retention and negligible KL.",
+        "tensors_edited": [
+          "transformer.h.9.mlp.c_fc.weight",
+          "transformer.h.9.mlp.c_fc.bias",
+          "transformer.h.9.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 3074,
+        "l2_norm": 11.6213
+      }
+    ],
+    "sae_patch_logs": [],
+    "base_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4437,
+      "blimp_acc": 0.4437,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.4,
+        "principle_A_reconstruction": 0.325,
+        "npi_present_1": 0.45,
+        "tough_vs_raising_1": 0.6
+      },
+      "mean_margin": -0.4022,
+      "num_items": 160,
+      "num_failing": 89,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4813,
+      "blimp_acc": 0.4813,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.5,
+        "principle_A_reconstruction": 0.325,
+        "npi_present_1": 0.5,
+        "tough_vs_raising_1": 0.6
+      },
+      "mean_margin": 0.0492,
+      "num_items": 160,
+      "num_failing": 83,
+      "keeper_retention": 0.9859,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.1521,
+      "wikitext2_kl": 0.00023
+    },
+    "base_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4839,
+      "blimp_acc": 0.4839,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3031,
+        "principle_A_reconstruction": 0.4208,
+        "npi_present_1": 0.5792,
+        "tough_vs_raising_1": 0.6323
+      },
+      "mean_margin": -0.2502,
+      "num_items": 3840,
+      "num_failing": 1982,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.5086,
+      "blimp_acc": 0.5086,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.4062,
+        "principle_A_reconstruction": 0.4208,
+        "npi_present_1": 0.5677,
+        "tough_vs_raising_1": 0.6396
+      },
+      "mean_margin": 0.206,
+      "num_items": 3840,
+      "num_failing": 1887,
+      "keeper_retention": 0.9752,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.1521,
+      "wikitext2_kl": 0.00023
+    },
+    "heldout_primary_delta": 0.0247,
+    "heldout_margin_delta": 0.4562,
+    "finish_summary": "Committed two dormant-neuron gates (L8 question-feature suppression; L9 personal-pronoun/action injection), changing 3,074 weight entries without gradient training or SAE updates. Practice BLiMP improved from 0.4437 to 0.4813; mean margin -0.4022 to 0.0492. Final WikiText-2 KL 0.000230, perplexity 48.1521 vs baseline 48.1774, keeper retention 0.9859. Rank-1 projections did not produce clean gains. Downstream NPI gate trials produced mixed subset effects and were not committed; stopping rather than fitting small practice fluctuations. Held-out generalization remains to be evaluated.",
+    "agent_model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "api_usage": {
+      "input_tokens": 145358,
+      "cached_input_tokens": 133874,
+      "output_tokens": 1105,
+      "reasoning_tokens": 108,
+      "total_tokens": 146463,
+      "turns": 19
+    },
+    "tool_trace_len": 19,
+    "elapsed_sec": 152.72
+  },
+  "patched_sae": {
+    "arm": "patched_sae",
+    "benchmark": "blimp",
+    "benchmark_meta": {
+      "dataset": "nyu-mll/blimp",
+      "subsets": [
+        "left_branch_island_echo_question",
+        "principle_A_reconstruction",
+        "npi_present_1",
+        "tough_vs_raising_1"
+      ],
+      "keeper_subsets": [
+        "determiner_noun_agreement_1",
+        "animate_subject_passive"
+      ],
+      "seed": 45,
+      "practice_n": 160,
+      "heldout_n": 3840,
+      "keeper_n": 80
+    },
+    "edits_committed": 2,
+    "committed_history": [
+      {
+        "edit_num": 1,
+        "layer": 8,
+        "edit_type": "rank1_projection",
+        "description": "L8.attn SAE proj #22110 (alpha=+0.800)",
+        "rationale": "Small attention projection amplification improves mean grammatical-pair margin by 0.0383 without losing any practice passes, with full keeper retention and KL 0.000083. Accuracy is unchanged; commit as a low-collateral margin improvement before probing patched downstream features.",
+        "tensors_edited": [
+          "transformer.h.8.attn.c_proj.weight",
+          "transformer.h.8.attn.c_proj.bias"
+        ],
+        "entries_changed": 590592,
+        "effective_dof": 1536,
+        "cumulative_entries_changed": 590592,
+        "l2_norm": 3.4296
+      },
+      {
+        "edit_num": 2,
+        "layer": 9,
+        "edit_type": "dormant_neuron_gate",
+        "description": "L9 dormant MLP gate read=[22703] write=-1*[22703] (gain=8.00)",
+        "rationale": "Context-gated suppression of the negation/refutation latent improves NPI practice accuracy from 45% to 47.5% and overall accuracy to 45%, with improved mean margin. Cumulative KL 0.000531 and keeper retention 0.9859 comfortably satisfy guards; only one dormant MLP neuron is changed.",
+        "tensors_edited": [
+          "transformer.h.9.mlp.c_fc.weight",
+          "transformer.h.9.mlp.c_fc.bias",
+          "transformer.h.9.mlp.c_proj.weight"
+        ],
+        "entries_changed": 1537,
+        "effective_dof": 1537,
+        "cumulative_entries_changed": 592129,
+        "l2_norm": 12.7542
+      }
+    ],
+    "sae_patch_logs": [
+      {
+        "edit_num": 1,
+        "edited_layer": 8,
+        "downstream_layer": 9,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 825507.375,
+        "mse_after": 394459.875
+      },
+      {
+        "edit_num": 1,
+        "edited_layer": 8,
+        "downstream_layer": 10,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 669768.125,
+        "mse_after": 573997.75
+      },
+      {
+        "edit_num": 1,
+        "edited_layer": 8,
+        "downstream_layer": 11,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 1134832.5,
+        "mse_after": 628768.0625
+      },
+      {
+        "edit_num": 2,
+        "edited_layer": 9,
+        "downstream_layer": 10,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 574198.8125,
+        "mse_after": 434276.28125
+      },
+      {
+        "edit_num": 2,
+        "edited_layer": 9,
+        "downstream_layer": 11,
+        "patched_latents": 32,
+        "patched_pct": 0.1302,
+        "mse_before": 629090.4375,
+        "mse_after": 194512.65625
+      }
+    ],
+    "base_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4437,
+      "blimp_acc": 0.4437,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.4,
+        "principle_A_reconstruction": 0.325,
+        "npi_present_1": 0.45,
+        "tough_vs_raising_1": 0.6
+      },
+      "mean_margin": -0.4022,
+      "num_items": 160,
+      "num_failing": 89,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_practice": {
+      "benchmark": "blimp",
+      "split": "practice",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.45,
+      "blimp_acc": 0.45,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.4,
+        "principle_A_reconstruction": 0.325,
+        "npi_present_1": 0.475,
+        "tough_vs_raising_1": 0.6
+      },
+      "mean_margin": -0.3031,
+      "num_items": 160,
+      "num_failing": 88,
+      "keeper_retention": 0.9859,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.2867,
+      "wikitext2_kl": 0.000531
+    },
+    "base_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4839,
+      "blimp_acc": 0.4839,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3031,
+        "principle_A_reconstruction": 0.4208,
+        "npi_present_1": 0.5792,
+        "tough_vs_raising_1": 0.6323
+      },
+      "mean_margin": -0.2502,
+      "num_items": 3840,
+      "num_failing": 1982,
+      "keeper_retention": 1.0,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.1774,
+      "wikitext2_kl": 0.0
+    },
+    "final_heldout": {
+      "benchmark": "blimp",
+      "split": "heldout",
+      "primary_metric_name": "blimp_acc",
+      "primary_score": 0.4914,
+      "blimp_acc": 0.4914,
+      "per_subset_acc": {
+        "left_branch_island_echo_question": 0.3021,
+        "principle_A_reconstruction": 0.4281,
+        "npi_present_1": 0.5927,
+        "tough_vs_raising_1": 0.6427
+      },
+      "mean_margin": -0.1914,
+      "num_items": 3840,
+      "num_failing": 1953,
+      "keeper_retention": 0.9747,
+      "ood_keeper_blimp_acc": 0.95,
+      "wikitext2_ppl": 48.2867,
+      "wikitext2_kl": 0.000531
+    },
+    "heldout_primary_delta": 0.0075,
+    "heldout_margin_delta": 0.0588,
+    "finish_summary": "Committed two gradient-free edits: L8 attention rank-1 amplification of SAE latent 22110 (+0.8), improving mean margin without accuracy loss; and L9 one-neuron context gate suppressing negation latent 22703 (gain 8), improving NPI accuracy 0.45->0.475. Downstream SAEs patched after each commit. Final practice accuracy 0.45 vs baseline 0.4437, mean margin -0.3031 vs -0.4022, WikiText-2 KL 0.000531, keeper retention 0.9859, PPL 48.2867 vs 48.1774. Other tested projections/gates did not clearly improve accuracy and were not committed. Stopping at turn budget with modest practice improvement; held-out generalization remains to be evaluated.",
+    "agent_model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "api_usage": {
+      "input_tokens": 167039,
+      "cached_input_tokens": 154857,
+      "output_tokens": 1266,
+      "reasoning_tokens": 104,
+      "total_tokens": 168305,
+      "turns": 20
+    },
+    "tool_trace_len": 20,
+    "elapsed_sec": 174.23
+  }
+}

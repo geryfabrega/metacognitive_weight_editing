@@ -5,6 +5,11 @@ __pycache__/
 venv/
 runs/
 *.safetensors
+!checkpoints/seed44_paired_patched_sae.safetensors
+!checkpoints/seed44_sparse_3074w.safetensors
 *.pt
 *.pth
 .DS_Store
+.env
+.env.local
+
