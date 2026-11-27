@@ -18,21 +18,32 @@ flowchart LR
 
 ## Verified Benchmark Results (GPT-2 Small 124M, Zero Gradients)
 
-### 1. Official EleutherAI `lm-eval` Verification (`checkpoints/seed44_paired_patched_sae.safetensors`)
-Unmodified `lm_eval.simple_evaluate` comparing Base GPT-2 Small vs. the Seed 44 `patched_sae` edited checkpoint (4 gradient-free edits at L7, L8, L9, L11):
+### 1. Official EleutherAI `lm-eval` Verification & Adversarial Shortcut Audit
+Unmodified `lm_eval.simple_evaluate` comparing Base GPT-2 Small vs. all three Seed 44 checkpoints (`no_sae`, `frozen_sae`, `patched_sae`) across target tasks, **5 adversarial grammatical Wh-question shortcut traps**, and unrelated collateral benchmarks *(note: `lm-eval` evaluates all 1,000 BLiMP items/task, which includes 40/1,000 practice items + 960 unseen items)*:
 
-| Official `lm-eval` Task | Role | Base GPT-2 | Edited GPT-2 | Delta |
-| :--- | :---: | :---: | :---: | :---: |
-| `blimp_left_branch_island_echo_question` (1,000) | **TARGET** | `48.10%` | **`95.10%`** | **`+47.00%`** |
-| `blimp_npi_present_1` (1,000) | **TARGET** | `59.60%` | **`64.10%`** | **`+4.50%`** |
-| `blimp_tough_vs_raising_1` (1,000) | **TARGET** | `65.30%` | **`67.10%`** | **`+1.80%`** |
-| `blimp_principle_A_reconstruction` (1,000) | **TARGET** | `39.70%` | **`39.80%`** | **`+0.10%`** |
-| **Target BLiMP-Hard Mean (4,000 items)** | **TARGET** | **`53.17%`** | **`66.53%`** | **`+13.35%`** |
-| `blimp_determiner_noun_agreement_1` (1,000) | COLLATERAL | `99.10%` | `98.90%` | `-0.20%` |
-| `blimp_animate_subject_passive` (1,000) | COLLATERAL | `79.50%` | `79.00%` | `-0.50%` |
-| `hellaswag` (200) | COLLATERAL | `37.00%` | **`37.00%`** | **`+0.00%`** |
-| `lambada_openai` (200) | COLLATERAL | `37.00%` | `36.00%` | `-1.00%` |
-| **Collateral Mean (OOD + General)** | COLLATERAL | `63.15%` | `62.72%` | **`-0.43%`** |
+| Official `lm-eval` Task | Role | Base GPT-2 | `no_sae` | `frozen_sae` | `patched_sae` |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `blimp_left_branch_island_echo_question` | **TARGET** | `48.10%` | `48.10% (+0.00%)` | `93.40% (+45.30%)` | `95.10% (+47.00%)` |
+| `blimp_principle_A_reconstruction` | **TARGET** | `39.70%` | `40.10% (+0.40%)` | `42.40% (+2.70%)` | `39.80% (+0.10%)` |
+| `blimp_npi_present_1` | **TARGET** | `59.60%` | `59.80% (+0.20%)` | `59.70% (+0.10%)` | **`64.10% (+4.50%)`** |
+| `blimp_tough_vs_raising_1` | **TARGET** | `65.30%` | `64.60% (-0.70%)` | `66.90% (+1.60%)` | **`67.10% (+1.80%)`** |
+| `blimp_left_branch_island_simple_question` | **ADVERSARIAL_WH** | `79.10%` | `79.40% (+0.30%)` | `62.90% (-16.20%)` | `64.40% (-14.70%)` |
+| `blimp_wh_questions_object_gap` | **ADVERSARIAL_WH** | `79.00%` | `79.90% (+0.90%)` | `79.00% (+0.00%)` | `78.00% (-1.00%)` |
+| `blimp_wh_questions_subject_gap` | **ADVERSARIAL_WH** | `94.90%` | `95.50% (+0.60%)` | `94.90% (+0.00%)` | `94.70% (-0.20%)` |
+| `blimp_wh_vs_that_with_gap` | **ADVERSARIAL_WH** | `63.10%` | `61.10% (-2.00%)` | `65.10% (+2.00%)` | `65.00% (+1.90%)` |
+| `blimp_matrix_question_npi_licensor_present` | **ADVERSARIAL_WH** | `64.60%` | `63.90% (-0.70%)` | **`0.40% (-64.20%)`** | **`0.10% (-64.50%)`** |
+| `blimp_determiner_noun_agreement_1` | COLLATERAL | `99.10%` | `99.20% (+0.10%)` | `99.00% (-0.10%)` | `98.90% (-0.20%)` |
+| `blimp_animate_subject_passive` | COLLATERAL | `79.50%` | `79.30% (-0.20%)` | `79.30% (-0.20%)` | `79.00% (-0.50%)` |
+| `lambada_openai` (200) | COLLATERAL | `37.00%` | `37.00% (+0.00%)` | `36.50% (-0.50%)` | `36.00% (-1.00%)` |
+| `hellaswag` (200) | COLLATERAL | `37.00%` | `37.00% (+0.00%)` | `37.00% (+0.00%)` | `37.00% (+0.00%)` |
+| **Target BLiMP-Hard Mean** | **TARGET** | `53.17%` | `53.15% (-0.02%)` | `65.60% (+12.43%)` | `66.53% (+13.35%)` |
+| **Adversarial Wh-Question Mean** | **ADVERSARIAL_WH** | `76.14%` | `75.96% (-0.18%)` | `60.46% (-15.68%)` | `60.44% (-15.70%)` |
+| **General Collateral Mean** | COLLATERAL | `63.15%` | `63.13% (-0.02%)` | `62.95% (-0.20%)` | `62.72% (-0.43%)` |
+
+> [!WARNING]
+> **Critical Self-Audit Finding (Weight-Space Reward Hacking):** The adversarial Wh-question audit exposed that the headline `+47%` jump on `left_branch_island_echo_question` came largely from **suppressing sentence-initial question SAE features (`L7 #11434`, `L11 #22295`)**, which passed general fluency guardrails (`hellaswag +0.00%`, `WikiText-2 KL = 0.0056`) while collapsing the grammatical matrix-question sibling (`matrix_question_npi_licensor_present: 64.6% → 0.1%`). On the non-shortcut targets (`npi_present_1`, `tough_vs_raising_1`), `patched_sae` still yielded clean, honest gains (`+4.5%`, `+1.8%`).
+>
+> **Fix Implemented (v2 Guardrails):** `mwe/benchmarks.py` now enforces **strict per-keeper-subset retention (`>= 90%`)** on disjoint practice/held-out splits of both grammatical Wh-question siblings (`left_branch_island_simple_question` and `matrix_question_npi_licensor_present`), preventing the outside agent from exploiting fronted-question shortcuts.
 
 ### 2. Controlled Paired-Branch Ablation (3 Seeds × 3,840 Held-Out = 11,520 Unseen Items)
 `frozen_sae` and `patched_sae` share the **exact same Phase-1 Edit #1**, then fork from identical post-Edit-1 weights for downstream Phase-2 edits (`gpt-6.1-sol`, `reasoning_effort=medium`):

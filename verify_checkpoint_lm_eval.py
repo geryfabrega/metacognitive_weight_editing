@@ -1,21 +1,26 @@
 """
-Official EleutherAI `lm-evaluation-harness` (`lm-eval`) Verification Script.
+Official EleutherAI `lm-evaluation-harness` (`lm-eval`) Verification & Adversarial Shortcut Audit.
 
-Loads untouched Base GPT-2 Small (124M) and applies any saved MWE `.safetensors` weight delta
-checkpoint (e.g., Seed 44 `branch_patched_sae`), then runs unmodified `lm_eval.simple_evaluate`
-on both Base and Edited GPT-2 across:
-  - Target BLiMP-Hard tasks (all 1,000 items per task by default = 4,000 official questions!)
-  - Collateral OOD BLiMP keeper tasks (2,000 official questions) + optional LAMBADA / HellaSwag
+Compares Base GPT-2 Small (124M) against one or more saved MWE `.safetensors` checkpoints
+across three distinct benchmark groups:
+  1. TARGET (4,000 items):          The 4 BLiMP-Hard tasks targeted by weight surgery
+  2. ADVERSARIAL_WH (5,000 items):  Grammatical Wh-question & island tasks designed specifically
+                                    to catch "fronted-Wh penalty" shortcuts!
+  3. COLLATERAL:                    Unrelated OOD BLiMP tasks + LAMBADA + HellaSwag
 
 Usage:
-  # Verify Seed 44 paired-branch patched_sae (+14.08% checkpoint) on full official BLiMP + LAMBADA:
+  # Compare all 3 Seed 44 checkpoints (no_sae vs. frozen_sae vs. patched_sae) in one run:
   python3 verify_checkpoint_lm_eval.py \
-      --delta /tmp/mwe_runs/blimp_paired_seed44/checkpoints/branch_patched_sae/model_delta_final.safetensors
+      --compare \
+        no_sae=/tmp/mwe_runs/blimp_seed44/checkpoints/no_sae/model_delta_final.safetensors \
+        frozen_sae=/tmp/mwe_runs/blimp_paired_seed44/checkpoints/branch_frozen_sae/model_delta_final.safetensors \
+        patched_sae=checkpoints/seed44_paired_patched_sae.safetensors \
+      --tag seed44_adversarial_audit
 
-  # Also test the ultra-sparse 37KB (3,074-weight, 0.0025% of GPT-2!) Seed 44 checkpoint:
+  # Or single checkpoint mode:
   python3 verify_checkpoint_lm_eval.py \
-      --delta /tmp/mwe_runs/blimp_seed44/checkpoints/patched_sae/model_delta_final.safetensors \
-      --tag seed44_sparse_3074w
+      --delta checkpoints/seed44_paired_patched_sae.safetensors \
+      --tag seed44_paired_patched_sae
 """
 
 import importlib.metadata
@@ -39,7 +44,6 @@ import time
 import torch
 
 os.environ.setdefault("HF_DATASETS_CACHE", "/tmp/mwe_cache")
-
 torch.__version__ = torch.__version__.split(".dev")[0]
 from safetensors.torch import load_file
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -48,13 +52,24 @@ import mwe  # noqa: F401
 from mwe.benchmarks import run_official_lm_eval
 
 CACHE_DIR = Path("/tmp/mwe_cache")
-DEFAULT_DELTA = Path("/tmp/mwe_runs/blimp_paired_seed44/checkpoints/branch_patched_sae/model_delta_final.safetensors")
+DEFAULT_DELTA = Path("checkpoints/seed44_paired_patched_sae.safetensors")
 
 TARGET_TASKS = [
     "blimp_left_branch_island_echo_question",
     "blimp_principle_A_reconstruction",
     "blimp_npi_present_1",
     "blimp_tough_vs_raising_1",
+]
+
+# Adversarial Wh-question shortcut-detector tasks:
+# If an edit merely penalized fronted Wh-words ("Which/Whose/What") indiscriminately,
+# these tasks will drop sharply or fail to benefit!
+ADVERSARIAL_WH_TASKS = [
+    "blimp_left_branch_island_simple_question",
+    "blimp_wh_questions_object_gap",
+    "blimp_wh_questions_subject_gap",
+    "blimp_wh_vs_that_with_gap",
+    "blimp_matrix_question_npi_licensor_present",
 ]
 
 COLLATERAL_BLIMP_TASKS = [
@@ -115,19 +130,49 @@ def _extract_acc(task_res: dict) -> float:
     return float("nan")
 
 
+def _eval_model_suite(model, tok, blimp_tasks, blimp_limit, collateral_limit, skip_general, batch_size):
+    res = run_official_lm_eval(model, tok, tasks=blimp_tasks, limit=blimp_limit, batch_size=batch_size)
+    if not skip_general:
+        gen = run_official_lm_eval(
+            model, tok, tasks=COLLATERAL_GENERAL_TASKS, limit=collateral_limit, batch_size=batch_size
+        )
+        res.update(gen)
+    return res
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Official EleutherAI lm-eval verification of MWE weight deltas")
-    parser.add_argument("--delta", type=str, default=str(DEFAULT_DELTA), help="Path to model_delta_final.safetensors")
-    parser.add_argument("--tag", type=str, default="seed44_paired_patched_sae", help="Output report filename tag")
-    parser.add_argument("--blimp-limit", type=int, default=None, help="Optional item cap per BLiMP task (default: None = ALL 1,000 items/task)")
-    parser.add_argument("--collateral-limit", type=int, default=200, help="Item cap for general collateral tasks (lambada_openai, hellaswag)")
-    parser.add_argument("--skip-general-collateral", action="store_true", help="Skip lambada_openai & hellaswag (faster BLiMP-only run)")
+    parser = argparse.ArgumentParser(description="Official EleutherAI lm-eval verification & adversarial shortcut audit")
+    parser.add_argument("--delta", type=str, default=None, help="Single checkpoint path (model_delta_final.safetensors)")
+    parser.add_argument(
+        "--compare",
+        nargs="+",
+        default=None,
+        help="Compare multiple checkpoints as name=path pairs (e.g. frozen_sae=... patched_sae=...)",
+    )
+    parser.add_argument("--tag", type=str, default="seed44_adversarial_audit", help="Output report filename tag")
+    parser.add_argument("--blimp-limit", type=int, default=None, help="Optional item cap per BLiMP task (default: ALL 1,000 items/task)")
+    parser.add_argument("--collateral-limit", type=int, default=200, help="Item cap for lambada_openai & hellaswag")
+    parser.add_argument("--skip-general-collateral", action="store_true", help="Skip lambada_openai & hellaswag")
+    parser.add_argument("--skip-adversarial-wh", action="store_true", help="Skip adversarial Wh-question tasks")
     parser.add_argument("--batch-size", type=int, default=16)
     args = parser.parse_args()
 
-    delta_path = Path(args.delta)
-    if not delta_path.exists():
-        raise SystemExit(f"ERROR: Delta checkpoint not found: {delta_path}")
+    # Build list of (label, Path) checkpoints to evaluate
+    checkpoints = []
+    if args.compare:
+        for spec in args.compare:
+            if "=" not in spec:
+                raise SystemExit(f"ERROR: --compare items must be `name=path`, got: {spec}")
+            lbl, p_str = spec.split("=", 1)
+            p = Path(p_str)
+            if not p.exists():
+                raise SystemExit(f"ERROR: Checkpoint `{lbl}` not found: {p}")
+            checkpoints.append((lbl, p))
+    else:
+        p = Path(args.delta or DEFAULT_DELTA)
+        if not p.exists():
+            raise SystemExit(f"ERROR: Delta checkpoint not found: {p}")
+        checkpoints.append(("edited", p))
 
     t0 = time.time()
     model_ref = _resolve_local_gpt2_path(CACHE_DIR)
@@ -136,69 +181,87 @@ def main():
     tok = AutoTokenizer.from_pretrained(model_ref, cache_dir=str(CACHE_DIR), local_files_only=is_local)
     base_model = AutoModelForCausalLM.from_pretrained(model_ref, cache_dir=str(CACHE_DIR), local_files_only=is_local).eval()
 
-    edited_model = copy.deepcopy(base_model).eval()
-    delta_stats = apply_safetensors_delta(edited_model, delta_path)
-    print(
-        f"Applied checkpoint `{delta_path.name}`: "
-        f"{delta_stats['entries_modified']:,} entries across {len(delta_stats['tensors_modified'])} tensors "
-        f"({delta_stats['pct_entries_modified']}% of GPT-2, L2={delta_stats['delta_l2_norm']})"
-    )
-
-    blimp_tasks = TARGET_TASKS + COLLATERAL_BLIMP_TASKS
-
-    print(f"\n[1/2] Running Official EleutherAI `lm-eval` on BASE GPT-2 ({len(blimp_tasks)} BLiMP tasks, limit={args.blimp_limit})...")
-    base_res = run_official_lm_eval(base_model, tok, tasks=blimp_tasks, limit=args.blimp_limit, batch_size=args.batch_size)
-    if not args.skip_general_collateral:
-        print(f"      Running general collateral tasks on BASE GPT-2 ({COLLATERAL_GENERAL_TASKS}, limit={args.collateral_limit})...")
-        base_gen = run_official_lm_eval(
-            base_model, tok, tasks=COLLATERAL_GENERAL_TASKS, limit=args.collateral_limit, batch_size=args.batch_size
-        )
-        base_res.update(base_gen)
-
-    print(f"\n[2/2] Running Official EleutherAI `lm-eval` on EDITED GPT-2 ({len(blimp_tasks)} BLiMP tasks, limit={args.blimp_limit})...")
-    edit_res = run_official_lm_eval(edited_model, tok, tasks=blimp_tasks, limit=args.blimp_limit, batch_size=args.batch_size)
-    if not args.skip_general_collateral:
-        print(f"      Running general collateral tasks on EDITED GPT-2 ({COLLATERAL_GENERAL_TASKS}, limit={args.collateral_limit})...")
-        edit_gen = run_official_lm_eval(
-            edited_model, tok, tasks=COLLATERAL_GENERAL_TASKS, limit=args.collateral_limit, batch_size=args.batch_size
-        )
-        edit_res.update(edit_gen)
-
+    adv_tasks = [] if args.skip_adversarial_wh else list(ADVERSARIAL_WH_TASKS)
+    blimp_tasks = TARGET_TASKS + adv_tasks + COLLATERAL_BLIMP_TASKS
     all_tasks = blimp_tasks + ([] if args.skip_general_collateral else COLLATERAL_GENERAL_TASKS)
 
-    print("\n" + "=" * 88)
-    print(f"OFFICIAL ELEUTHERAI `lm-eval` VERIFICATION ({args.tag})")
-    print("=" * 88)
-    print(f"{'Task':<42} | {'Role':<10} | {'Base GPT-2':>10} | {'Edited':>10} | {'Delta':>9}")
-    print("-" * 88)
+    total_steps = 1 + len(checkpoints)
+    print(f"\n[1/{total_steps}] Evaluating BASE GPT-2 ({len(blimp_tasks)} BLiMP tasks, limit={args.blimp_limit})...")
+    base_res = _eval_model_suite(
+        base_model, tok, blimp_tasks, args.blimp_limit, args.collateral_limit, args.skip_general_collateral, args.batch_size
+    )
+
+    ckpt_results = {}
+    ckpt_stats = {}
+    for idx, (lbl, p) in enumerate(checkpoints, start=2):
+        edited_model = copy.deepcopy(base_model).eval()
+        st = apply_safetensors_delta(edited_model, p)
+        ckpt_stats[lbl] = st
+        print(
+            f"\n[{idx}/{total_steps}] Evaluating `{lbl}` ({p.name}: {st['entries_modified']:,} entries, L2={st['delta_l2_norm']})..."
+        )
+        ckpt_results[lbl] = _eval_model_suite(
+            edited_model, tok, blimp_tasks, args.blimp_limit, args.collateral_limit, args.skip_general_collateral, args.batch_size
+        )
+
+    def role_of(task: str) -> str:
+        if task in TARGET_TASKS:
+            return "TARGET"
+        if task in adv_tasks:
+            return "ADVERSARIAL_WH"
+        return "COLLATERAL"
+
+    # Print side-by-side comparison table
+    labels = [lbl for lbl, _ in checkpoints]
+    col_header = " | ".join(f"{lbl:>18}" for lbl in labels)
+    width = 68 + 21 * len(labels)
+    print("\n" + "=" * width)
+    print(f"OFFICIAL ELEUTHERAI `lm-eval` ADVERSARIAL AUDIT ({args.tag})")
+    print("=" * width)
+    print(f"{'Task':<42} | {'Role':<14} | {'Base':>7} | {col_header}")
+    print("-" * width)
 
     rows = []
-    target_base, target_edit = [], []
-    collat_base, collat_edit = [], []
+    group_scores = {
+        role: {"base": [], **{lbl: [] for lbl in labels}}
+        for role in ("TARGET", "ADVERSARIAL_WH", "COLLATERAL")
+    }
 
     for task in all_tasks:
-        role = "TARGET" if task in TARGET_TASKS else "COLLATERAL"
+        role = role_of(task)
         b_acc = _extract_acc(base_res.get(task, {}))
-        e_acc = _extract_acc(edit_res.get(task, {}))
-        delta = e_acc - b_acc
-        if role == "TARGET":
-            target_base.append(b_acc)
-            target_edit.append(e_acc)
-        else:
-            collat_base.append(b_acc)
-            collat_edit.append(e_acc)
-        rows.append({"task": task, "role": role, "base": round(b_acc, 4), "edited": round(e_acc, 4), "delta": round(delta, 4)})
-        print(f"{task:<42} | {role:<10} | {b_acc*100:9.2f}% | {e_acc*100:9.2f}% | {delta*100:+8.2f}%")
+        group_scores[role]["base"].append(b_acc)
+        row = {"task": task, "role": role, "base": round(b_acc, 4), "checkpoints": {}}
+        cells = []
+        for lbl in labels:
+            e_acc = _extract_acc(ckpt_results[lbl].get(task, {}))
+            delta = e_acc - b_acc
+            group_scores[role][lbl].append(e_acc)
+            row["checkpoints"][lbl] = {"acc": round(e_acc, 4), "delta": round(delta, 4)}
+            cells.append(f"{e_acc*100:6.2f}% ({delta*100:+6.2f}%)")
+        rows.append(row)
+        print(f"{task:<42} | {role:<14} | {b_acc*100:6.2f}% | " + " | ".join(cells))
 
-    t_b_mean = sum(target_base) / len(target_base)
-    t_e_mean = sum(target_edit) / len(target_edit)
-    c_b_mean = sum(collat_base) / len(collat_base)
-    c_e_mean = sum(collat_edit) / len(collat_edit)
-
-    print("-" * 88)
-    print(f"{'TARGET BLiMP-HARD MEAN (4,000 items)':<42} | {'TARGET':<10} | {t_b_mean*100:9.2f}% | {t_e_mean*100:9.2f}% | {(t_e_mean - t_b_mean)*100:+8.2f}%")
-    print(f"{'COLLATERAL MEAN (OOD + General)':<42} | {'COLLATERAL':<10} | {c_b_mean*100:9.2f}% | {c_e_mean*100:9.2f}% | {(c_e_mean - c_b_mean)*100:+8.2f}%")
-    print("=" * 88)
+    print("-" * width)
+    summary_groups = {}
+    for role, nice_name in (
+        ("TARGET", "TARGET BLiMP-HARD MEAN"),
+        ("ADVERSARIAL_WH", "ADVERSARIAL WH-QUESTION MEAN (Shortcut?)"),
+        ("COLLATERAL", "GENERAL COLLATERAL MEAN"),
+    ):
+        b_list = group_scores[role]["base"]
+        if not b_list:
+            continue
+        b_mean = sum(b_list) / len(b_list)
+        summary_groups[role] = {"base": round(b_mean, 4), "checkpoints": {}}
+        cells = []
+        for lbl in labels:
+            e_mean = sum(group_scores[role][lbl]) / len(group_scores[role][lbl])
+            d_mean = e_mean - b_mean
+            summary_groups[role]["checkpoints"][lbl] = {"acc": round(e_mean, 4), "delta": round(d_mean, 4)}
+            cells.append(f"{e_mean*100:6.2f}% ({d_mean*100:+6.2f}%)")
+        print(f"{nice_name:<42} | {role:<14} | {b_mean*100:6.2f}% | " + " | ".join(cells))
+    print("=" * width)
 
     elapsed = round(time.time() - t0, 2)
     payload = {
@@ -206,16 +269,11 @@ def main():
         "elapsed_sec": elapsed,
         "blimp_limit": args.blimp_limit,
         "collateral_limit": None if args.skip_general_collateral else args.collateral_limit,
-        "delta_stats": delta_stats,
-        "target_mean_base": round(t_b_mean, 4),
-        "target_mean_edited": round(t_e_mean, 4),
-        "target_mean_delta": round(t_e_mean - t_b_mean, 4),
-        "collateral_mean_base": round(c_b_mean, 4),
-        "collateral_mean_edited": round(c_e_mean, 4),
-        "collateral_mean_delta": round(c_e_mean - c_b_mean, 4),
+        "checkpoint_stats": ckpt_stats,
+        "group_means": summary_groups,
         "rows": rows,
         "raw_base_results": base_res,
-        "raw_edited_results": edit_res,
+        "raw_checkpoint_results": ckpt_results,
     }
 
     out_dir = Path(__file__).resolve().parent / "results"
@@ -225,22 +283,25 @@ def main():
     json_path.write_text(json.dumps(payload, indent=2, default=str))
 
     md = [
-        f"# Official EleutherAI `lm-eval` Verification (`{args.tag}`)",
+        f"# Official EleutherAI `lm-eval` Adversarial Audit (`{args.tag}`)",
         "",
-        f"- **Checkpoint:** `{delta_path}`",
-        f"- **Modified tensors:** `{len(delta_stats['tensors_modified'])}` (`{delta_stats['entries_modified']:,}` entries, L2=`{delta_stats['delta_l2_norm']}`)",
-        f"- **Target BLiMP-Hard Mean:** `{t_b_mean*100:.2f}%` -> **`{t_e_mean*100:.2f}%`** (**`{(t_e_mean - t_b_mean)*100:+.2f}%`**)",
-        f"- **Collateral Mean:** `{c_b_mean*100:.2f}%` -> `{c_e_mean*100:.2f}%` (`{(c_e_mean - c_b_mean)*100:+.2f}%`)",
-        "",
-        "| Task | Role | Base GPT-2 | Edited GPT-2 | Delta |",
-        "| :--- | :---: | :---: | :---: | :---: |",
+        "| Task | Role | Base GPT-2 | " + " | ".join(f"`{lbl}`" for lbl in labels) + " |",
+        "| :--- | :---: | :---: | " + " | ".join(":---:" for _ in labels) + " |",
     ]
     for r in rows:
-        md.append(f"| `{r['task']}` | {r['role']} | {r['base']*100:.2f}% | {r['edited']*100:.2f}% | **{r['delta']*100:+.2f}%** |")
+        vals = [f"{r['checkpoints'][lbl]['acc']*100:.2f}% (**{r['checkpoints'][lbl]['delta']*100:+.2f}%**)" for lbl in labels]
+        md.append(f"| `{r['task']}` | {r['role']} | {r['base']*100:.2f}% | " + " | ".join(vals) + " |")
+    md.append("")
+    md.append("## Group Means")
+    md.append("| Group | Base GPT-2 | " + " | ".join(f"`{lbl}`" for lbl in labels) + " |")
+    md.append("| :--- | :---: | " + " | ".join(":---:" for _ in labels) + " |")
+    for role, g in summary_groups.items():
+        vals = [f"{g['checkpoints'][lbl]['acc']*100:.2f}% (**{g['checkpoints'][lbl]['delta']*100:+.2f}%**)" for lbl in labels]
+        md.append(f"| **{role}** | {g['base']*100:.2f}% | " + " | ".join(vals) + " |")
     md_path.write_text("\n".join(md))
 
-    print(f"\nSaved official lm-eval report: {json_path}")
-    print(f"Saved markdown summary:        {md_path}")
+    print(f"\nSaved official lm-eval audit: {json_path}")
+    print(f"Saved markdown summary:       {md_path}")
     print(f"Total runtime: {elapsed}s")
 
 

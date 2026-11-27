@@ -23,10 +23,14 @@ DEFAULT_BLIMP_SUBSETS = [
     "tough_vs_raising_1",                # ~62% base GPT-2 (tough-movement vs. raising)
 ]
 
-# Held-out unrelated BLiMP subsets used purely as syntactic keeper guardrails
+# Held-out unrelated + adversarial sibling BLiMP subsets used as strict per-subset keeper guardrails.
+# Including grammatical fronted-question siblings (`left_branch_island_simple_question` and
+# `matrix_question_npi_licensor_present`) explicitly blocks fronted-Wh suppression shortcuts!
 DEFAULT_BLIMP_KEEPER_SUBSETS = [
     "determiner_noun_agreement_1",
     "animate_subject_passive",
+    "left_branch_island_simple_question",
+    "matrix_question_npi_licensor_present",
 ]
 
 
@@ -67,6 +71,7 @@ class BenchmarkSplit:
     heldout_items: List[object]
     wikitext_passages: List[str]
     keeper_blimp_items: List[BLiMPItem] = field(default_factory=list)
+    heldout_keeper_blimp_items: List[BLiMPItem] = field(default_factory=list)
     metadata: Dict[str, object] = field(default_factory=dict)
 
 
@@ -281,7 +286,8 @@ def load_blimp_benchmark(
 
     practice: List[BLiMPItem] = []
     heldout: List[BLiMPItem] = []
-    keepers: List[BLiMPItem] = []
+    keepers_prac: List[BLiMPItem] = []
+    keepers_held: List[BLiMPItem] = []
     rng = random.Random(seed)
 
     for sub in target_subsets:
@@ -301,7 +307,8 @@ def load_blimp_benchmark(
             for i, r in enumerate(ds)
         ]
         rng.shuffle(sub_items)
-        keepers.extend(sub_items[:keeper_per_subset])
+        keepers_prac.extend(sub_items[:keeper_per_subset])
+        keepers_held.extend(sub_items[keeper_per_subset : keeper_per_subset + max(keeper_per_subset, 60)])
 
     wikitext = load_wikitext2_passages(num_passages=wikitext_passages_n, cache_dir=cache_dir)
 
@@ -310,7 +317,8 @@ def load_blimp_benchmark(
         practice_items=practice,
         heldout_items=heldout,
         wikitext_passages=wikitext,
-        keeper_blimp_items=keepers,
+        keeper_blimp_items=keepers_prac,
+        heldout_keeper_blimp_items=keepers_held,
         metadata={
             "dataset": "nyu-mll/blimp",
             "subsets": target_subsets,
@@ -318,7 +326,8 @@ def load_blimp_benchmark(
             "seed": seed,
             "practice_n": len(practice),
             "heldout_n": len(heldout),
-            "keeper_n": len(keepers),
+            "keeper_practice_n": len(keepers_prac),
+            "keeper_heldout_n": len(keepers_held),
         },
     )
 
@@ -492,16 +501,26 @@ def evaluate_benchmark(
 
             failing_pairs.sort(key=lambda c: c.margin)
 
-            # Evaluate unrelated keeper BLiMP subsets
+            # Evaluate disjoint OOD + adversarial sibling keeper BLiMP subsets
+            active_keepers = (
+                benchmark.keeper_blimp_items
+                if split == "practice" or not benchmark.heldout_keeper_blimp_items
+                else benchmark.heldout_keeper_blimp_items
+            )
             keeper_acc = 1.0
-            if benchmark.keeper_blimp_items:
+            per_keeper_subset_acc: Dict[str, float] = {}
+            keeper_subset_indices: Dict[str, List[int]] = {}
+            if active_keepers:
                 k_pairs: List[Tuple[str, str]] = []
-                for it in benchmark.keeper_blimp_items:
+                for j, it in enumerate(active_keepers):
                     k_pairs.append(("", it.sentence_good))
                     k_pairs.append(("", it.sentence_bad))
+                    keeper_subset_indices.setdefault(it.subset, []).append(j)
                 k_lps = score_continuations_batched(model, tok, k_pairs, batch_size=batch_size)
-                k_ok = [1 if k_lps[2 * j] > k_lps[2 * j + 1] else 0 for j in range(len(benchmark.keeper_blimp_items))]
+                k_ok = [1 if k_lps[2 * j] > k_lps[2 * j + 1] else 0 for j in range(len(active_keepers))]
                 keeper_acc = sum(k_ok) / max(len(k_ok), 1)
+                for sub_name, idxs in keeper_subset_indices.items():
+                    per_keeper_subset_acc[sub_name] = round(sum(k_ok[j] for j in idxs) / max(len(idxs), 1), 4)
             else:
                 k_ok = []
 
@@ -518,8 +537,16 @@ def evaluate_benchmark(
             if base_k_ok is not None and k_ok:
                 base_k_pos = [i for i, f in enumerate(base_k_ok) if f == 1]
                 ood_keeper_ret = sum(k_ok[i] for i in base_k_pos) / max(len(base_k_pos), 1)
+                # Strict per-keeper-subset retention: blocks shortcutting one sibling task at another's expense!
+                per_sub_rets = []
+                for sub_name, idxs in keeper_subset_indices.items():
+                    sub_base_pos = [j for j in idxs if base_k_ok[j] == 1]
+                    if sub_base_pos:
+                        per_sub_rets.append(sum(k_ok[j] for j in sub_base_pos) / len(sub_base_pos))
+                min_sub_keeper_ret = min(per_sub_rets) if per_sub_rets else 1.0
             else:
                 ood_keeper_ret = 1.0
+                min_sub_keeper_ret = 1.0
 
             overall_acc = sum(correct_flags) / max(len(correct_flags), 1)
             per_subset_acc = {k: round(sum(v) / max(len(v), 1), 4) for k, v in subset_hits.items()}
@@ -531,10 +558,11 @@ def evaluate_benchmark(
                 "primary_score": round(overall_acc, 4),
                 "blimp_acc": round(overall_acc, 4),
                 "per_subset_acc": per_subset_acc,
+                "per_keeper_subset_acc": per_keeper_subset_acc,
                 "mean_margin": round(sum(margins) / max(len(margins), 1), 4),
                 "num_items": len(items),
                 "num_failing": len(failing_pairs),
-                "keeper_retention": round(min(in_domain_keeper, ood_keeper_ret), 4),
+                "keeper_retention": round(min(in_domain_keeper, ood_keeper_ret, min_sub_keeper_ret), 4),
                 "ood_keeper_blimp_acc": round(keeper_acc, 4),
                 "wikitext2_ppl": wt_ppl,
                 "wikitext2_kl": wt_kl,
